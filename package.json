@@ -1,0 +1,39 @@
+{
+  "name": "spaceboard-pc",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "optimize-model": "gltf-transform optimize assets/test-floorplan.glb public/models/floorplan.glb --flatten false --join false --instance false --palette false --texture-compress false --simplify-error 0.002 --compress meshopt && npm run optimize-l13",
+    "optimize-l13": "NODE_OPTIONS='--max-old-space-size=8192' tsx scripts/assemble-floorplan.ts assets/l13 public/models/l13-floorplan.glb"
+  },
+  "private": true,
+  "packageManager": "npm@12.0.2",
+  "dependencies": {
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "rxjs": "~7.8.0",
+    "three": "^0.187.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.7",
+    "@angular/cli": "^22.2.7",
+    "@angular/compiler-cli": "^22.2.0",
+    "@gltf-transform/cli": "^4.5.1",
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@types/three": "^0.187.0",
+    "meshoptimizer": "^1.3.0",
+    "prettier": "^3.8.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2"
+  }
+}

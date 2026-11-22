@@ -1,0 +1,1091 @@
+<div class="kiosk-shell">
+  <!-- 3D Map Viewport -->
+  <div #viewport class="viewport"></div>
+
+  <!-- Loading Overlay -->
+  @if (store.status() === 'loading') {
+    <div class="loading-overlay">
+      <div class="loading-card">
+        <div class="spinner-ring"></div>
+        <h2>Loading {{ loadingFloorName() }}</h2>
+        <p>Preparing 3D floor plan, disk cache &amp; multi-floor wayfinding...</p>
+        <div class="progress-bar">
+          <div class="progress-bar__fill" [style.width.%]="store.progress()"></div>
+        </div>
+        <span class="progress-label">{{ store.progress() }}%</span>
+      </div>
+    </div>
+  }
+
+  <!-- Error Overlay -->
+  @if (store.status() === 'error') {
+    <div class="loading-overlay">
+      <div class="loading-card loading-card--error">
+        <h2>Unable to Load Floor Plan</h2>
+        <p>{{ store.error() }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Booking Confirmation Toast -->
+  @if (bookingSuccessBanner(); as msg) {
+    <div class="toast-banner">
+      <span class="toast-dot"></span>
+      <span>{{ msg }}</span>
+    </div>
+  }
+
+  <!-- Top Header Bar -->
+  <header class="top-bar">
+    <div class="brand-pill" (click)="store.reset()">
+      <div class="brand-badge">SB</div>
+      <div class="brand-meta">
+        <span class="brand-title">SpaceBoard PC</span>
+        <span class="brand-sub">
+          <span class="pulse-dot"></span>
+          {{ store.activeDevice().label }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Quick Kiosk Device / Floor / Day / Time Filter Bar -->
+    <div class="top-filter-bar">
+      <div class="top-chip" title="Active Kiosk Starting Position (?kioskId=...)">
+        <svg viewBox="0 0 24 24" width="15" height="15">
+          <path
+            fill="currentColor"
+            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"
+          />
+        </svg>
+        <select
+          aria-label="Kiosk Device"
+          [ngModel]="store.activeDevice().deviceId"
+          (ngModelChange)="store.setKioskDevice($event)"
+        >
+          @for (dev of store.kioskDevices; track dev.deviceId) {
+            <option [value]="dev.deviceId">{{ dev.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="top-chip">
+        <svg viewBox="0 0 24 24" width="15" height="15">
+          <path
+            fill="currentColor"
+            d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"
+          />
+        </svg>
+        <select
+          aria-label="Floor"
+          [ngModel]="store.floorFilter()"
+          (ngModelChange)="store.setFloor($event)"
+        >
+          @for (fl of store.floors(); track fl) {
+            <option [value]="fl">
+              {{ fl }}{{ store.cachedFloors().includes(fl) ? ' ✓' : '' }}
+            </option>
+          }
+        </select>
+      </div>
+
+      <div class="top-chip">
+        <svg viewBox="0 0 24 24" width="15" height="15">
+          <path
+            fill="currentColor"
+            d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"
+          />
+        </svg>
+        <input
+          type="date"
+          aria-label="Booking Date"
+          [ngModel]="store.filterDate()"
+          (ngModelChange)="store.filterDate.set($event)"
+        />
+      </div>
+
+      <div class="top-chip">
+        <svg viewBox="0 0 24 24" width="15" height="15">
+          <path
+            fill="currentColor"
+            d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"
+          />
+        </svg>
+        <select
+          aria-label="Start Time"
+          [ngModel]="store.startTime()"
+          (ngModelChange)="store.setStartTime($event)"
+        >
+          @for (slot of timeSlots; track slot) {
+            <option [value]="slot">{{ formatTime12h(slot) }}</option>
+          }
+        </select>
+        <span class="chip-sep">&ndash;</span>
+        <select
+          aria-label="End Time"
+          [ngModel]="store.endTime()"
+          (ngModelChange)="store.setEndTime($event)"
+        >
+          @for (slot of timeSlots; track slot) {
+            <option [value]="slot">{{ formatTime12h(slot) }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <!-- Status Legend matching screenshot -->
+      <div class="legend-pill">
+        <span class="legend-item">
+          <span class="legend-square" [style.background]="statusColors.available"></span>
+          Available ({{ store.statusSummary().available }})
+        </span>
+        <span class="legend-item">
+          <span class="legend-square" [style.background]="statusColors.reserved"></span>
+          Reserve ({{ store.statusSummary().reserved }})
+        </span>
+        <span class="legend-item">
+          <span class="legend-square" [style.background]="statusColors.occupied"></span>
+          Occupied ({{ store.statusSummary().occupied }})
+        </span>
+      </div>
+
+      <div class="clock-pill">
+        <span class="clock-time">{{ currentTime() }}</span>
+        <span class="clock-date">{{ currentDate() }}</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Left Directory, Search Filters & Wayfinding Panel -->
+  <aside class="sidebar" [class.is-collapsed]="sidebarCollapsed()">
+    <button
+      type="button"
+      class="sidebar-toggle"
+      (click)="sidebarCollapsed.set(!sidebarCollapsed())"
+      [attr.aria-label]="sidebarCollapsed() ? 'Expand panel' : 'Collapse panel'"
+    >
+      <svg viewBox="0 0 24 24" width="18" height="18">
+        @if (sidebarCollapsed()) {
+          <path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
+        } @else {
+          <path fill="currentColor" d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z" />
+        }
+      </svg>
+    </button>
+
+    <div class="sidebar-inner">
+      <!-- Primary Mode Switcher: Find & Book vs Wayfinding -->
+      <div class="mode-switcher">
+        <button
+          type="button"
+          class="mode-btn"
+          [class.is-active]="sidebarTab() === 'search'"
+          (click)="sidebarTab.set('search')"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <path
+              fill="currentColor"
+              d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"
+            />
+          </svg>
+          <span>Find &amp; Book</span>
+        </button>
+        <button
+          type="button"
+          class="mode-btn"
+          [class.is-active]="sidebarTab() === 'wayfinding'"
+          (click)="sidebarTab.set('wayfinding')"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <path
+              fill="currentColor"
+              d="M21.71 11.29l-9-9a.996.996 0 00-1.41 0l-9 9a.996.996 0 000 1.41l9 9c.39.39 1.02.39 1.41 0l9-9a.996.996 0 000-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"
+            />
+          </svg>
+          <span>Wayfinding</span>
+          @if (store.route()) {
+            <span class="active-route-dot"></span>
+          }
+        </button>
+      </div>
+
+      <!-- TAB 1: SEARCH & BOOKING FILTERS -->
+      @if (sidebarTab() === 'search') {
+        <section class="filters-panel">
+          <div class="filters-grid">
+            <div class="filter-field">
+              <label>Site</label>
+              <select
+                [ngModel]="store.siteFilter()"
+                (ngModelChange)="store.siteFilter.set($event)"
+              >
+                @for (s of store.sites(); track s) {
+                  <option [value]="s">{{ s }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="filter-field">
+              <label>3D Floor View</label>
+              <select
+                [ngModel]="store.floorFilter()"
+                (ngModelChange)="store.setFloor($event)"
+              >
+                @for (fl of store.floors(); track fl) {
+                  <option [value]="fl">{{ fl }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="filter-field">
+              <label>Date (Day)</label>
+              <input
+                type="date"
+                [ngModel]="store.filterDate()"
+                (ngModelChange)="store.filterDate.set($event)"
+              />
+            </div>
+
+            <div class="filter-field">
+              <label>Resource Type</label>
+              <select
+                [ngModel]="store.resourceTypeFilter()"
+                (ngModelChange)="store.resourceTypeFilter.set($event)"
+              >
+                <option value="all">All Types</option>
+                @for (rt of store.resourceTypes(); track rt) {
+                  <option [value]="rt">{{ rt }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="filter-field">
+              <label>Start Time</label>
+              <select
+                [ngModel]="store.startTime()"
+                (ngModelChange)="store.setStartTime($event)"
+              >
+                @for (slot of timeSlots; track slot) {
+                  <option [value]="slot">{{ formatTime12h(slot) }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="filter-field">
+              <label>End Time</label>
+              <select
+                [ngModel]="store.endTime()"
+                (ngModelChange)="store.setEndTime($event)"
+              >
+                @for (slot of timeSlots; track slot) {
+                  <option [value]="slot">{{ formatTime12h(slot) }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <!-- Equipment Multi-Select & Available Only Toggle -->
+          <div class="filter-extras">
+            <button
+              type="button"
+              class="equip-toggle-btn"
+              [class.has-selection]="store.selectedEquipment().length > 0"
+              (click)="showEquipmentFilter.set(!showEquipmentFilter())"
+            >
+              <span>
+                Equipment
+                @if (store.selectedEquipment().length > 0) {
+                  ({{ store.selectedEquipment().length }})
+                }
+              </span>
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path fill="currentColor" d="M7 10l5 5 5-5z" />
+              </svg>
+            </button>
+
+            <label class="avail-Switch">
+              <input
+                type="checkbox"
+                [ngModel]="store.onlyAvailable()"
+                (ngModelChange)="store.onlyAvailable.set($event)"
+              />
+              <span>Available</span>
+            </label>
+
+            <label class="avail-Switch" title="Show resources across all floors">
+              <input
+                type="checkbox"
+                [ngModel]="store.searchAllFloors()"
+                (ngModelChange)="store.searchAllFloors.set($event)"
+              />
+              <span>All Floors</span>
+            </label>
+
+            @if (
+              store.query() ||
+              store.resourceTypeFilter() !== 'all' ||
+              store.selectedEquipment().length > 0 ||
+              store.onlyAvailable()
+            ) {
+              <button type="button" class="text-btn" (click)="store.clearFilters()">
+                Reset
+              </button>
+            }
+          </div>
+
+          @if (showEquipmentFilter()) {
+            <div class="equip-chips">
+              @for (eq of store.equipmentOptions(); track eq) {
+                <button
+                  type="button"
+                  class="equip-chip"
+                  [class.is-selected]="store.selectedEquipment().includes(eq)"
+                  (click)="store.toggleEquipment(eq)"
+                >
+                  {{ eq }}
+                </button>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      <!-- TAB 2: WAYFINDING PLANNER (Single & Multi-Floor) -->
+      @if (sidebarTab() === 'wayfinding') {
+        <section class="wayfinding-card">
+          <div class="section-header">
+            <div class="section-title-group">
+              <svg viewBox="0 0 24 24" width="18" height="18" class="accent-icon">
+                <path
+                  fill="currentColor"
+                  d="M21.71 11.29l-9-9a.996.996 0 00-1.41 0l-9 9a.996.996 0 000 1.41l9 9c.39.39 1.02.39 1.41 0l9-9a.996.996 0 000-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"
+                />
+              </svg>
+              <h2>Multi-Floor Route Planner</h2>
+            </div>
+            @if (store.route() || store.toId() || store.fromId() !== store.homeKioskId()) {
+              <button type="button" class="text-btn" (click)="store.clearRoute()">Clear Route</button>
+            }
+          </div>
+
+          <div class="route-inputs">
+            <div class="route-row">
+              <span class="route-marker route-marker--start"></span>
+              <div class="route-field">
+                <label for="fromSelect">From</label>
+                <select
+                  id="fromSelect"
+                  [ngModel]="store.fromId()"
+                  (ngModelChange)="store.setFrom($event)"
+                >
+                  @for (p of store.places(); track p.id) {
+                    <option [value]="p.id">
+                      [L{{ p.level }}] {{ p.id === store.homeKioskId() ? 'You Are Here (' + p.code + ')' : p.name + ' (' + p.code + ')' }}
+                    </option>
+                  }
+                </select>
+              </div>
+            </div>
+
+            <div class="route-row">
+              <span class="route-marker route-marker--end"></span>
+              <div class="route-field">
+                <label for="toSelect">To Destination</label>
+                <select
+                  id="toSelect"
+                  [ngModel]="store.toId() ?? ''"
+                  (ngModelChange)="$event ? store.setTo($event) : store.clearRoute()"
+                >
+                  <option value="">Select a destination...</option>
+                  @for (p of store.places(); track p.id) {
+                    @if (p.id !== store.fromId()) {
+                      <option [value]="p.id">
+                        [L{{ p.level }}] {{ p.id === store.homeKioskId() ? 'You Are Here (' + p.code + ')' : p.name + ' (' + p.code + ')' }}
+                      </option>
+                    }
+                  }
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="swap-btn"
+              [disabled]="!store.toId()"
+              (click)="store.swap()"
+              title="Swap start and destination"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path
+                  fill="currentColor"
+                  d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"
+                />
+              </svg>
+            </button>
+          </div>
+
+          @if (store.routeError()) {
+            <div class="route-alert">{{ store.routeError() }}</div>
+          }
+
+          @if (store.route(); as route) {
+            <div class="route-summary">
+              <div class="route-metrics">
+                <div class="metric">
+                  <span class="metric-val">{{ formatDuration(route.seconds) }}</span>
+                  <span class="metric-lbl">Est. Time</span>
+                </div>
+                <div class="metric-divider"></div>
+                <div class="metric">
+                  <span class="metric-val">{{ formatDistance(route.length) }}</span>
+                  <span class="metric-lbl">Walk Dist</span>
+                </div>
+                <div class="metric-divider"></div>
+                <div class="metric">
+                  <span class="metric-val">
+                    @if (route.multiFloor) {
+                      L{{ route.from.level }} &rarr; L{{ route.to.level }}
+                    } @else {
+                      {{ route.from.floor }}
+                    }
+                  </span>
+                  <span class="metric-lbl">{{ route.multiFloor ? 'Via Lift' : 'Floor' }}</span>
+                </div>
+              </div>
+
+              <!-- Multi-floor segment switcher pills -->
+              @if (route.multiFloor && route.segments) {
+                <div class="segment-pills">
+                  @for (seg of route.segments; track seg.floor; let idx = $index) {
+                    <button
+                      type="button"
+                      class="segment-pill"
+                      [class.is-active]="store.floorFilter() === seg.floor"
+                      (click)="store.viewRouteFloor(seg.floor)"
+                    >
+                      <span class="segment-badge">Leg {{ idx + 1 }}</span>
+                      <span>{{ seg.floor }} ({{ formatDistance(seg.length) }})</span>
+                    </button>
+                  }
+                </div>
+              }
+
+              <div class="steps-list">
+                @for (step of route.steps; track $index) {
+                  <div
+                    class="step-item"
+                    [class.is-arrive]="step.turn === 'arrive'"
+                    [class.is-lift]="step.turn === 'lift'"
+                    [class.is-active-floor]="step.floor === store.floorFilter()"
+                    (click)="onStepClick(step)"
+                  >
+                    <div class="step-icon">
+                      <svg viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" [attr.d]="turnIcon(step.turn)" />
+                      </svg>
+                    </div>
+                    <div class="step-body">
+                      <span class="step-text">{{ step.text }}</span>
+                      <div class="step-meta">
+                        @if (route.multiFloor && step.floor) {
+                          <span class="step-floor-tag">L{{ step.floor.replace('Level ', '') }}</span>
+                        }
+                        @if (step.distance > 0.4) {
+                          <span class="step-dist">{{ formatDistance(step.distance) }}</span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </section>
+      }
+
+      <!-- Resource Directory List -->
+      <section class="directory-section">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" width="18" height="18" class="search-icon">
+            <path
+              fill="currentColor"
+              d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+            />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search rooms, desks (L12 &amp; L13), equipment..."
+            [ngModel]="store.query()"
+            (ngModelChange)="store.query.set($event)"
+          />
+          @if (store.query()) {
+            <button
+              type="button"
+              class="clear-search"
+              (click)="store.query.set('')"
+              aria-label="Clear search"
+            >
+              &times;
+            </button>
+          }
+        </div>
+
+        <div class="filter-tabs">
+          @for (tab of kindFilters; track tab.id) {
+            <button
+              type="button"
+              class="filter-tab"
+              [class.is-active]="store.filter() === tab.id"
+              (click)="store.filter.set(tab.id)"
+            >
+              <span>{{ tab.label }}</span>
+              <span class="tab-count">{{ store.counts()[tab.id] || 0 }}</span>
+            </button>
+          }
+        </div>
+
+        <div class="resource-list">
+          @for (item of store.filtered(); track item.id) {
+            @let status = store.statusOf(item.id);
+            <div
+              class="resource-card"
+              [class.is-selected]="store.selectedId() === item.id"
+              (click)="onSelectFromList(item.id)"
+            >
+              <div
+                class="resource-swatch"
+                [style.background]="resourceSwatchColor(item)"
+              >
+                {{ item.code }}
+              </div>
+
+              <div class="resource-info">
+                <div class="resource-title-row">
+                  <span class="resource-name">{{ item.name }}</span>
+                  @if (item.bookable) {
+                    <span
+                      class="status-pill"
+                      [attr.data-status]="status"
+                    >
+                      <span class="status-dot" [style.background]="statusColor(status)"></span>
+                      {{ statusLabel(status) }}
+                    </span>
+                  }
+                </div>
+                <div class="resource-meta">
+                  <span class="floor-chip">L{{ item.level }}</span>
+                  <span>&bull;</span>
+                  <span>{{ item.resourceType }}</span>
+                  @if (item.capacity > 0) {
+                    <span>&bull;</span>
+                    <span>{{ item.capacity }} {{ item.capacity === 1 ? 'person' : 'people' }}</span>
+                  }
+                </div>
+                @if (item.equipment.length > 0) {
+                  <div class="resource-equip-line">
+                    {{ item.equipment.slice(0, 3).join(', ') }}
+                  </div>
+                }
+              </div>
+
+              <div class="resource-actions">
+                @if (item.bookable && status === 'available') {
+                  <button
+                    type="button"
+                    class="book-mini-btn"
+                    (click)="openBookingModal(item, $event)"
+                    title="Book {{ item.name }}"
+                  >
+                    Book
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="go-btn"
+                  [class.is-active]="store.toId() === item.id"
+                  (click)="onNavigateHere(item.id, $event)"
+                  title="Navigate to {{ item.name }}"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14">
+                    <path
+                      fill="currentColor"
+                      d="M21.71 11.29l-9-9a.996.996 0 00-1.41 0l-9 9a.996.996 0 000 1.41l9 9c.39.39 1.02.39 1.41 0l9-9a.996.996 0 000-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-state">
+              <p>No resources match the selected filters.</p>
+              <button type="button" class="text-btn" (click)="store.clearFilters()">
+                Reset Filters
+              </button>
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Right Resource Detail & Booking Inspector Panel (Matches Screenshot) -->
+  @if (store.selected(); as sel) {
+    @let selStatus = store.statusOf(sel.id);
+    <aside class="detail-drawer">
+      <div class="detail-header">
+        <div>
+          <h2 class="detail-title">{{ sel.name }}</h2>
+          <span class="detail-sub">{{ sel.code }} &bull; {{ sel.id }}</span>
+        </div>
+        <button
+          type="button"
+          class="inspector-close"
+          (click)="store.select(null)"
+          aria-label="Close details"
+        >
+          &times;
+        </button>
+      </div>
+
+      <!-- Visual Preview Banner -->
+      <div class="detail-preview" [attr.data-kind]="sel.kind">
+        <div
+          class="detail-preview__accent"
+          [style.background]="sel.bookable ? statusColor(selStatus) : kindColor(sel.kind)"
+        ></div>
+        <div class="detail-preview__content">
+          <span class="preview-type-tag">{{ sel.resourceType }} &bull; {{ sel.floor }}</span>
+          <p class="preview-desc">
+            {{ sel.description || 'Interactive workspace resource on ' + sel.floor + '.' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Metadata Specs Table (Capacity, Room Type, Floor, Features, Status) -->
+      <div class="spec-list">
+        @if (sel.capacity > 0) {
+          <div class="spec-row">
+            <span class="spec-label">Capacity</span>
+            <span class="spec-value">{{ sel.capacity }} {{ sel.capacity === 1 ? 'person' : 'people' }}</span>
+          </div>
+        }
+        <div class="spec-row">
+          <span class="spec-label">Resource Type</span>
+          <span class="spec-value">{{ sel.resourceType }}</span>
+        </div>
+        <div class="spec-row">
+          <span class="spec-label">Site &amp; Floor</span>
+          <span class="spec-value">{{ sel.site }} &bull; {{ sel.floor }}</span>
+        </div>
+        @if (sel.equipment.length > 0) {
+          <div class="spec-row spec-row--stacked">
+            <span class="spec-label">Features &amp; Equipment</span>
+            <span class="spec-value">{{ sel.equipment.join(', ') }}</span>
+          </div>
+        }
+        @if (sel.bookable) {
+          <div class="spec-row">
+            <span class="spec-label">Status ({{ formatTime12h(store.startTime()) }})</span>
+            <span class="spec-status" [attr.data-status]="selStatus">
+              <span class="status-dot" [style.background]="statusColor(selStatus)"></span>
+              {{ statusLabel(selStatus) }}
+            </span>
+          </div>
+        }
+      </div>
+
+      <!-- Day Schedule Bar (07:00 - 19:00) -->
+      @if (sel.bookable) {
+        <div class="day-timeline-box">
+          <div class="timeline-header">
+            <span class="timeline-title">Day Availability ({{ formatDisplayDate(store.filterDate()) }})</span>
+          </div>
+          <div class="timeline-track">
+            @for (res of store.selectedDayReservations(); track res.id) {
+              @let pos = reservationBarStyle(res.startTime, res.endTime);
+              <div
+                class="timeline-block"
+                [class.is-occupied]="res.status === 'started'"
+                [class.is-reserved]="res.status === 'starting'"
+                [style.left]="pos.left"
+                [style.width]="pos.width"
+                [title]="res.subject + ' [' + res.status + '] (' + formatTime12h(res.startTime) + ' - ' + formatTime12h(res.endTime) + ')'"
+                (click)="openEditReservationModal(res, $event)"
+              ></div>
+            }
+          </div>
+          <div class="timeline-scale">
+            <span>7 AM</span>
+            <span>10 AM</span>
+            <span>1 PM</span>
+            <span>4 PM</span>
+            <span>7 PM</span>
+          </div>
+        </div>
+
+        <!-- Current / Upcoming Booking Card -->
+        <div class="upcoming-section">
+          <h4>Current / Upcoming Booking</h4>
+          @if (store.selectedNextReservation(); as nextRes) {
+            <div class="upcoming-card">
+              <div class="upcoming-date">
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path
+                    fill="currentColor"
+                    d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"
+                  />
+                </svg>
+                <span>{{ formatDisplayDate(nextRes.date) }}</span>
+                <span
+                  class="mini-status-tag"
+                  [attr.data-status]="nextRes.status === 'started' ? 'occupied' : 'reserved'"
+                >
+                  {{ nextRes.status }}
+                </span>
+              </div>
+              <div class="upcoming-time">
+                {{ formatTime12h(nextRes.startTime) }} &ndash; {{ formatTime12h(nextRes.endTime) }}
+              </div>
+              <div class="upcoming-title">{{ nextRes.subject }}</div>
+              <div class="upcoming-org">Organizer: {{ nextRes.organizer }}</div>
+
+              <!-- Lifecycle Actions based on status ('starting' vs 'started') -->
+              <div class="reservation-action-bar">
+                @if (nextRes.status === 'starting') {
+                  <button
+                    type="button"
+                    class="res-btn res-btn--edit"
+                    (click)="openEditReservationModal(nextRes, $event)"
+                    title="Update date, time, organizer, or subject"
+                  >
+                    Update
+                  </button>
+                  <button
+                    type="button"
+                    class="res-btn res-btn--start"
+                    (click)="store.startReservation(nextRes.id)"
+                    title="Check in and start meeting now"
+                  >
+                    Check In
+                  </button>
+                  <button
+                    type="button"
+                    class="res-btn res-btn--danger"
+                    (click)="onCancelReservation(nextRes, $event)"
+                    title="Cancel upcoming reservation"
+                  >
+                    Cancel
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="res-btn res-btn--edit"
+                    (click)="openEditReservationModal(nextRes, $event)"
+                    title="Update reservation Subject"
+                  >
+                    Edit Subject
+                  </button>
+                  <button
+                    type="button"
+                    class="res-btn res-btn--danger"
+                    (click)="onEndReservation(nextRes, $event)"
+                    title="End current reservation early"
+                  >
+                    End Now
+                  </button>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="upcoming-empty">
+              No upcoming bookings for the rest of this day.
+            </div>
+          }
+
+          <button
+            type="button"
+            class="btn-outline-full"
+            (click)="showFullSchedule.set(!showFullSchedule())"
+          >
+            {{ showFullSchedule() ? 'Hide Day Schedule' : 'View Full Day Schedule (' + store.selectedDayReservations().length + ')' }}
+          </button>
+
+          @if (showFullSchedule()) {
+            <div class="full-schedule-list">
+              @for (r of store.selectedDayReservations(); track r.id) {
+                <div class="schedule-row">
+                  <span
+                    class="status-dot"
+                    [style.background]="r.status === 'started' ? statusColors.occupied : statusColors.reserved"
+                  ></span>
+                  <div class="schedule-row__info">
+                    <div class="schedule-row__top">
+                      <strong>{{ formatTime12h(r.startTime) }} &ndash; {{ formatTime12h(r.endTime) }}</strong>
+                      <span
+                        class="mini-status-tag"
+                        [attr.data-status]="r.status === 'started' ? 'occupied' : 'reserved'"
+                      >
+                        {{ r.status }}
+                      </span>
+                    </div>
+                    <span>{{ r.subject }} ({{ r.organizer }})</span>
+                    <div class="schedule-row__actions">
+                      @if (r.status === 'starting') {
+                        <button type="button" class="link-btn" (click)="openEditReservationModal(r, $event)">
+                          Update
+                        </button>
+                        <button type="button" class="link-btn" (click)="store.startReservation(r.id)">
+                          Start
+                        </button>
+                        <button type="button" class="link-btn link-btn--danger" (click)="onCancelReservation(r, $event)">
+                          Cancel
+                        </button>
+                      } @else {
+                        <button type="button" class="link-btn" (click)="openEditReservationModal(r, $event)">
+                          Edit Subject
+                        </button>
+                        <button type="button" class="link-btn link-btn--danger" (click)="onEndReservation(r, $event)">
+                          End
+                        </button>
+                      }
+                    </div>
+                  </div>
+                </div>
+              } @empty {
+                <div class="schedule-empty">Free all day on {{ formatDisplayDate(store.filterDate()) }}.</div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Action Buttons: Book Resource + Wayfinding -->
+      <div class="detail-actions">
+        @if (sel.bookable) {
+          <button
+            type="button"
+            class="btn-book-now"
+            (click)="openBookingModal(sel)"
+          >
+            New Booking for {{ sel.name }}
+          </button>
+        }
+        <div class="detail-nav-btns">
+          <button
+            type="button"
+            class="btn-primary"
+            (click)="onNavigateHere(sel.id)"
+          >
+            Navigate Here
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            (click)="onNavigateFromHere(sel.id)"
+          >
+            Set as Start
+          </button>
+        </div>
+      </div>
+    </aside>
+  }
+
+  <!-- Create / Update Reservation Modal Dialog -->
+  @if (bookingModalOpen() && store.selected(); as targetRes) {
+    @let editRes = editingReservation();
+    @let isStartedEdit = bookingModalMode() === 'edit' && editRes?.status === 'started';
+    <div class="modal-backdrop" (click)="closeBookingModal()">
+      <div class="booking-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <span class="modal-kicker">
+              {{ targetRes.resourceType }} &bull; {{ targetRes.floor }}
+              @if (editRes) {
+                &bull; Status: <strong>{{ editRes.status }}</strong>
+              }
+            </span>
+            <h3>
+              @if (bookingModalMode() === 'create') {
+                Book {{ targetRes.name }}
+              } @else if (isStartedEdit) {
+                Update Subject — {{ targetRes.name }}
+              } @else {
+                Update Upcoming Reservation — {{ targetRes.name }}
+              }
+            </h3>
+          </div>
+          <button type="button" class="inspector-close" (click)="closeBookingModal()">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          @if (isStartedEdit) {
+            <div class="started-lock-notice">
+              This reservation has already <strong>started</strong>. Only the reservation <strong>Subject</strong> can be modified, or you may <strong>End</strong> the reservation.
+            </div>
+          }
+
+          <div class="form-group">
+            <label>Subject</label>
+            <input
+              type="text"
+              placeholder="e.g. Product Strategy Sync"
+              [ngModel]="bookingSubject()"
+              (ngModelChange)="bookingSubject.set($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Organizer Name</label>
+            <input
+              type="text"
+              placeholder="e.g. Jamie Lee"
+              [disabled]="isStartedEdit"
+              [ngModel]="bookingOrganizer()"
+              (ngModelChange)="bookingOrganizer.set($event)"
+            />
+          </div>
+
+          <div class="form-row-3">
+            <div class="form-group">
+              <label>Date</label>
+              <input
+                type="date"
+                [disabled]="isStartedEdit"
+                [ngModel]="bookingDate()"
+                (ngModelChange)="bookingDate.set($event)"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Start Time</label>
+              <select
+                [disabled]="isStartedEdit"
+                [ngModel]="bookingStartTime()"
+                (ngModelChange)="bookingStartTime.set($event)"
+              >
+                @for (slot of timeSlots; track slot) {
+                  <option [value]="slot">{{ formatTime12h(slot) }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>End Time</label>
+              <select
+                [disabled]="isStartedEdit"
+                [ngModel]="bookingEndTime()"
+                (ngModelChange)="bookingEndTime.set($event)"
+              >
+                @for (slot of timeSlots; track slot) {
+                  <option [value]="slot">{{ formatTime12h(slot) }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          @if (bookingModalMode() === 'create') {
+            <label class="checkin-checkbox">
+              <input
+                type="checkbox"
+                [ngModel]="bookingStartNow()"
+                (ngModelChange)="bookingStartNow.set($event)"
+              />
+              <span>Start immediately (sets status to <strong>started</strong> / Occupied)</span>
+            </label>
+          }
+
+          @if (bookingError()) {
+            <div class="route-alert">{{ bookingError() }}</div>
+          }
+        </div>
+
+        <div class="modal-footer">
+          @if (bookingModalMode() === 'edit' && editRes) {
+            @if (editRes.status === 'starting') {
+              <button
+                type="button"
+                class="btn-danger-outline"
+                (click)="onCancelReservation(editRes)"
+              >
+                Cancel Reservation
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="btn-danger-outline"
+                (click)="onEndReservation(editRes)"
+              >
+                End Reservation
+              </button>
+            }
+          }
+
+          <button type="button" class="btn-secondary" (click)="closeBookingModal()">
+            Close
+          </button>
+          <button type="button" class="btn-book-now" (click)="submitBooking()">
+            {{ bookingModalMode() === 'create' ? 'Confirm Reservation' : 'Save Changes' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Map View Controls (Bottom Center-Right) -->
+  <div class="map-controls" [class.shifted-left]="!!store.selected()">
+    <!-- Floor Switcher Pill -->
+    <div class="control-group">
+      @for (fl of store.floorConfigs; track fl.id) {
+        <button
+          type="button"
+          class="ctrl-btn"
+          [class.is-active]="store.floorFilter() === fl.id"
+          (click)="store.setFloor(fl.id)"
+          [title]="'Switch to ' + fl.id"
+        >
+          {{ fl.shortCode }}
+        </button>
+      }
+    </div>
+
+    <div class="control-group">
+      <button
+        type="button"
+        class="ctrl-btn"
+        [class.is-active]="store.viewMode() === '3d'"
+        (click)="setViewMode('3d')"
+        title="3D Perspective View"
+      >
+        3D
+      </button>
+      <button
+        type="button"
+        class="ctrl-btn"
+        [class.is-active]="store.viewMode() === '2d'"
+        (click)="setViewMode('2d')"
+        title="2D Top-Down Plan View"
+      >
+        2D
+      </button>
+    </div>
+
+    <button
+      type="button"
+      class="ctrl-btn ctrl-btn--wide"
+      [class.is-active]="store.cutaway()"
+      (click)="toggleCutaway()"
+      title="Toggle Dollhouse Cutaway Walls"
+    >
+      <span>{{ store.cutaway() ? 'Low Walls' : 'Full Walls' }}</span>
+    </button>
+
+    <button
+      type="button"
+      class="ctrl-btn ctrl-btn--wide"
+      (click)="store.reset()"
+      title="Reset Map &amp; Return to Kiosk"
+    >
+      <span>Reset View</span>
+    </button>
+  </div>
+</div>
