@@ -2,8 +2,64 @@
   <!-- 3D Map Viewport -->
   <div #viewport class="viewport"></div>
 
+  <!-- Azure AD Authentication Gate -->
+  @if (!auth.isAuthenticated()) {
+    <div class="auth-overlay">
+      <div class="auth-card">
+        <div class="auth-brand">
+          <div class="brand-badge">SB</div>
+          <div>
+            <h1>SpaceBoard PC</h1>
+            <p class="auth-subtitle">3D Workspace Booking &amp; Wayfinding</p>
+          </div>
+        </div>
+
+        @if (auth.status() === 'initializing') {
+          <div class="auth-body">
+            <div class="spinner-ring"></div>
+            <p class="auth-message">{{ auth.statusMessage() }}</p>
+          </div>
+        } @else {
+          <div class="auth-body">
+            @if (auth.status() === 'reauth-required') {
+              <div class="auth-notice auth-notice--warn">
+                <strong>Session re-authentication required</strong>
+                <span>{{ auth.statusMessage() }}</span>
+              </div>
+            } @else {
+              <p class="auth-message">{{ auth.statusMessage() }}</p>
+            }
+
+            @if (auth.error(); as authErr) {
+              <div class="auth-notice auth-notice--error">
+                <strong>Authentication Error</strong>
+                <span>{{ authErr }}</span>
+              </div>
+            }
+
+            <button type="button" class="ms-login-btn" (click)="signIn()">
+              <svg viewBox="0 0 21 21" width="18" height="18" aria-hidden="true">
+                <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+                <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+                <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+                <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+              </svg>
+              <span>
+                {{
+                  auth.status() === 'reauth-required'
+                    ? 'Sign in again with Microsoft'
+                    : 'Sign in with Microsoft'
+                }}
+              </span>
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
   <!-- Loading Overlay -->
-  @if (store.status() === 'loading') {
+  @if (auth.isAuthenticated() && store.status() === 'loading') {
     <div class="loading-overlay">
       <div class="loading-card">
         <div class="spinner-ring"></div>
@@ -62,7 +118,7 @@
           [ngModel]="store.activeDevice().deviceId"
           (ngModelChange)="store.setKioskDevice($event)"
         >
-          @for (dev of store.kioskDevices; track dev.deviceId) {
+          @for (dev of store.kioskDevices(); track dev.deviceId) {
             <option [value]="dev.deviceId">{{ dev.label }}</option>
           }
         </select>
@@ -133,21 +189,26 @@
     </div>
 
     <div class="top-right">
-      <!-- Status Legend matching screenshot -->
-      <div class="legend-pill">
-        <span class="legend-item">
-          <span class="legend-square" [style.background]="statusColors.available"></span>
-          Available ({{ store.statusSummary().available }})
-        </span>
-        <span class="legend-item">
-          <span class="legend-square" [style.background]="statusColors.reserved"></span>
-          Reserve ({{ store.statusSummary().reserved }})
-        </span>
-        <span class="legend-item">
-          <span class="legend-square" [style.background]="statusColors.occupied"></span>
-          Occupied ({{ store.statusSummary().occupied }})
-        </span>
-      </div>
+      @if (auth.user(); as user) {
+        <div class="user-pill" [title]="user.email || user.name">
+          <span class="user-avatar">{{ user.initials }}</span>
+          <span class="user-name">{{ user.name }}</span>
+          <button
+            type="button"
+            class="user-signout-btn"
+            (click)="signOut()"
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15">
+              <path
+                fill="currentColor"
+                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+              />
+            </svg>
+          </button>
+        </div>
+      }
 
       <div class="clock-pill">
         <span class="clock-time">{{ currentTime() }}</span>
@@ -918,6 +979,20 @@
         </div>
 
         <div class="modal-body">
+          @if (targetRes.exchangeId) {
+            <div class="outlook-sync-badge">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10z"
+                />
+              </svg>
+              <span>
+                Books directly in <strong>Outlook / Exchange</strong> ({{ targetRes.exchangeId }})
+              </span>
+            </div>
+          }
+
           @if (isStartedEdit) {
             <div class="started-lock-notice">
               This reservation has already <strong>started</strong>. Only the reservation <strong>Subject</strong> can be modified, or you may <strong>End</strong> the reservation.
@@ -984,6 +1059,37 @@
           </div>
 
           @if (bookingModalMode() === 'create') {
+            @if (targetRes.exchangeId) {
+              <div class="form-group">
+                <label>Attendees (optional emails, comma-separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. alex@company.com, sam@company.com"
+                  [ngModel]="bookingAttendees()"
+                  (ngModelChange)="bookingAttendees.set($event)"
+                />
+              </div>
+
+              <div class="form-group">
+                <label>Agenda / Notes (optional)</label>
+                <textarea
+                  rows="2"
+                  placeholder="Add meeting agenda or notes..."
+                  [ngModel]="bookingNotes()"
+                  (ngModelChange)="bookingNotes.set($event)"
+                ></textarea>
+              </div>
+
+              <label class="checkin-checkbox">
+                <input
+                  type="checkbox"
+                  [ngModel]="bookingOnlineMeeting()"
+                  (ngModelChange)="bookingOnlineMeeting.set($event)"
+                />
+                <span>Include <strong>Microsoft Teams</strong> meeting link</span>
+              </label>
+            }
+
             <label class="checkin-checkbox">
               <input
                 type="checkbox"
@@ -1020,11 +1126,27 @@
             }
           }
 
-          <button type="button" class="btn-secondary" (click)="closeBookingModal()">
+          <button
+            type="button"
+            class="btn-secondary"
+            [disabled]="bookingSubmitting()"
+            (click)="closeBookingModal()"
+          >
             Close
           </button>
-          <button type="button" class="btn-book-now" (click)="submitBooking()">
-            {{ bookingModalMode() === 'create' ? 'Confirm Reservation' : 'Save Changes' }}
+          <button
+            type="button"
+            class="btn-book-now"
+            [disabled]="bookingSubmitting()"
+            (click)="submitBooking()"
+          >
+            @if (bookingSubmitting()) {
+              Syncing with Outlook...
+            } @else if (bookingModalMode() === 'create') {
+              {{ targetRes.exchangeId ? 'Book in Outlook' : 'Confirm Reservation' }}
+            } @else {
+              Save Changes
+            }
           </button>
         </div>
       </div>
@@ -1033,9 +1155,25 @@
 
   <!-- Map View Controls (Bottom Center-Right) -->
   <div class="map-controls" [class.shifted-left]="!!store.selected()">
+    <!-- Status Legend Pill -->
+    <div class="legend-pill">
+      <span class="legend-item">
+        <span class="legend-square" [style.background]="statusColors.available"></span>
+        Available ({{ store.statusSummary().available }})
+      </span>
+      <span class="legend-item">
+        <span class="legend-square" [style.background]="statusColors.reserved"></span>
+        Reserve ({{ store.statusSummary().reserved }})
+      </span>
+      <span class="legend-item">
+        <span class="legend-square" [style.background]="statusColors.occupied"></span>
+        Occupied ({{ store.statusSummary().occupied }})
+      </span>
+    </div>
+
     <!-- Floor Switcher Pill -->
     <div class="control-group">
-      @for (fl of store.floorConfigs; track fl.id) {
+      @for (fl of store.floorConfigs(); track fl.id) {
         <button
           type="button"
           class="ctrl-btn"

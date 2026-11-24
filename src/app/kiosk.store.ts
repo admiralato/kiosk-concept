@@ -10,11 +10,14 @@ import type {
   SpaceBoardDataset,
 } from './wayfinding/models';
 import {
-  FLOOR_CONFIGS,
-  KIOSK_DEVICES,
+  DEFAULT_FLOOR_CONFIGS,
+  DEFAULT_KIOSK_DEVICES,
+  DEFAULT_KIOSK_DEVICE_ID,
   resolveKioskDevice,
   resolveKioskDeviceFromUrl,
+  type FloorConfig,
   type KioskDeviceConfig,
+  type KioskRuntimeConfig,
 } from './wayfinding/kiosk-config';
 import type { ResourceKind } from './wayfinding/resource-config';
 import type { Wayfinder } from './wayfinding/wayfinder';
@@ -71,8 +74,9 @@ export class KioskStore {
 
   /** Active kiosk device resolved from `?kioskId=` or default config fallback. */
   readonly activeDevice = signal<KioskDeviceConfig>(this.initialDevice);
-  readonly kioskDevices = KIOSK_DEVICES;
-  readonly floorConfigs = FLOOR_CONFIGS;
+  readonly kioskDevices = signal<ReadonlyArray<KioskDeviceConfig>>(DEFAULT_KIOSK_DEVICES);
+  readonly floorConfigs = signal<ReadonlyArray<FloorConfig>>(DEFAULT_FLOOR_CONFIGS);
+  readonly defaultKioskDeviceId = signal<string>(DEFAULT_KIOSK_DEVICE_ID);
 
   /** Per-floor raw 3D scene resources + wayfinders. */
   private readonly floorResourcesMap = signal<Map<string, KioskResource[]>>(new Map());
@@ -81,7 +85,7 @@ export class KioskStore {
   readonly reservations = signal<Reservation[]>([]);
 
   readonly sites = signal<string[]>(['Marina Bay Tower']);
-  readonly floors = signal<string[]>(FLOOR_CONFIGS.map((f) => f.id));
+  readonly floors = signal<string[]>(DEFAULT_FLOOR_CONFIGS.map((f) => f.id));
   readonly resourceTypes = signal<ResourceSubType[]>([
     'Meeting Room',
     'Private Room',
@@ -142,6 +146,7 @@ export class KioskStore {
             capacity: entry.capacity,
             equipment: entry.equipment,
             description: entry.description,
+            exchangeId: entry.exchangeId ?? null,
             bookable: true,
           });
         }
@@ -308,9 +313,52 @@ export class KioskStore {
     }
   }
 
+  /** Applies runtime floor & kiosk configuration loaded from `data/kiosk-config.json`. */
+  applyRuntimeConfig(cfg: KioskRuntimeConfig): void {
+    this.floorConfigs.set(cfg.floors);
+    this.kioskDevices.set(cfg.kioskDevices);
+    this.defaultKioskDeviceId.set(cfg.defaultKioskDeviceId);
+
+    const floorIds = cfg.floors.map((f) => f.id);
+    this.floors.update((existing) => {
+      const merged = [...floorIds];
+      for (const fl of existing) {
+        if (!merged.includes(fl)) merged.push(fl);
+      }
+      return merged;
+    });
+
+    const configSites = Array.from(new Set(cfg.floors.map((f) => f.site).filter(Boolean)));
+    if (configSites.length) {
+      this.sites.update((existing) => {
+        const merged = [...configSites];
+        for (const s of existing) {
+          if (!merged.includes(s)) merged.push(s);
+        }
+        return merged;
+      });
+      if (!configSites.includes(this.siteFilter())) {
+        this.siteFilter.set(configSites[0]);
+      }
+    }
+
+    const dev = resolveKioskDeviceFromUrl(
+      typeof window !== 'undefined' ? window.location.search : '',
+      cfg.kioskDevices,
+      cfg.defaultKioskDeviceId,
+    );
+    this.activeDevice.set(dev);
+    this.floorFilter.set(dev.floorId);
+    this.fromId.set(dev.resourceId);
+  }
+
   /** Switches the active kiosk device (and updates URL `?kioskId=` without reloading the page). */
   setKioskDevice(deviceIdOrAlias: string): void {
-    const dev = resolveKioskDevice(deviceIdOrAlias);
+    const dev = resolveKioskDevice(
+      deviceIdOrAlias,
+      this.kioskDevices(),
+      this.defaultKioskDeviceId(),
+    );
     this.activeDevice.set(dev);
     this.floorFilter.set(dev.floorId);
     this.fromId.set(dev.resourceId);
@@ -363,15 +411,20 @@ export class KioskStore {
   /** Loads the sample JSON dataset for catalog metadata and reservations. */
   async loadDataset(url = 'data/spaceboard-data.json'): Promise<void> {
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: 'no-cache' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as SpaceBoardDataset;
 
       const todayStr = toDateInputValue(new Date());
       const tomorrowStr = toDateInputValue(addDays(new Date(), 1));
 
-      if (data.sites?.length) this.sites.set(data.sites);
-      if (data.floors?.length) this.floors.set(data.floors);
+      if (data.sites?.length) {
+        this.sites.update((existing) => Array.from(new Set([...existing, ...data.sites!])));
+      }
+      if (data.floors?.length) {
+        const cfgFloors = this.floorConfigs().map((f) => f.id);
+        this.floors.set(Array.from(new Set([...cfgFloors, ...data.floors])));
+      }
       if (data.resourceTypes?.length) this.resourceTypes.set(data.resourceTypes);
       if (data.equipmentOptions?.length) this.equipmentOptions.set(data.equipmentOptions);
 
@@ -439,6 +492,10 @@ export class KioskStore {
     startTime: string;
     endTime: string;
     startNow?: boolean;
+    outlookEventId?: string;
+    outlookWebLink?: string;
+    attendees?: string[];
+    isOnlineMeeting?: boolean;
   }): { ok: boolean; error?: string; reservation?: Reservation } {
     const resObj = this.byId(payload.resourceId);
     if (!resObj || !resObj.bookable) {
@@ -473,6 +530,10 @@ export class KioskStore {
       startTime: payload.startTime,
       endTime: payload.endTime,
       status: payload.startNow ? 'started' : 'starting',
+      ...(payload.outlookEventId ? { outlookEventId: payload.outlookEventId } : {}),
+      ...(payload.outlookWebLink ? { outlookWebLink: payload.outlookWebLink } : {}),
+      ...(payload.attendees?.length ? { attendees: payload.attendees } : {}),
+      ...(payload.isOnlineMeeting ? { isOnlineMeeting: true } : {}),
     };
 
     this.reservations.update((list) => [...list, newReservation]);

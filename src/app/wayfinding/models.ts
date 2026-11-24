@@ -32,6 +32,8 @@ export interface ResourceCatalogEntry {
   capacity: number;
   equipment: string[];
   description?: string;
+  /** Exchange / Outlook room mailbox SMTP address (e.g. `mr13-52@company.com`). When set, bookings sync directly to Outlook via Microsoft Graph. */
+  exchangeId?: string | null;
 }
 
 export interface Reservation {
@@ -48,6 +50,14 @@ export interface Reservation {
   endTime: string;
   /** 'starting' -> Yellow (Reserve), 'started' -> Red (Occupied) */
   status: ReservationStatus;
+  /** Microsoft Graph Event ID when booked via Outlook/Exchange. */
+  outlookEventId?: string;
+  /** Direct Outlook Web link returned by Microsoft Graph. */
+  outlookWebLink?: string;
+  /** Optional attendee email addresses invited to the event. */
+  attendees?: string[];
+  /** Whether a Microsoft Teams meeting link was attached. */
+  isOnlineMeeting?: boolean;
 }
 
 export interface SpaceBoardDataset {
@@ -79,6 +89,8 @@ export interface KioskResource {
   capacity: number;
   equipment: string[];
   description?: string;
+  /** Exchange / Outlook room mailbox SMTP address (null/empty for non-Exchange resources). */
+  exchangeId?: string | null;
   /** Whether users can book this resource */
   bookable: boolean;
   /** Centre of the resource on the floor plane. */

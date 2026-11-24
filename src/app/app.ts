@@ -12,6 +12,8 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { KioskStore, timeToMinutes, type KindFilter } from './kiosk.store';
+import { AzureAuthService } from './auth/azure-auth.service';
+import { OutlookCalendarService } from './auth/outlook-calendar.service';
 import {
   AMENITY_COLORS,
   FloorplanEngine,
@@ -19,7 +21,7 @@ import {
   STATUS_COLORS,
   type ViewMode,
 } from './three/floorplan-engine';
-import { FLOOR_CONFIGS, getFloorConfig } from './wayfinding/kiosk-config';
+import { getFloorConfig, loadKioskConfig } from './wayfinding/kiosk-config';
 import { KIND_LABELS, type ResourceKind } from './wayfinding/resource-config';
 import type {
   AvailabilityStatus,
@@ -40,6 +42,8 @@ const IDLE_TIMEOUT_MS = 90_000;
 })
 export class App implements OnInit, OnDestroy {
   readonly store = inject(KioskStore);
+  readonly auth = inject(AzureAuthService);
+  private readonly outlookCalendar = inject(OutlookCalendarService);
 
   @ViewChild('viewport', { static: true }) viewportRef!: ElementRef<HTMLElement>;
 
@@ -48,6 +52,7 @@ export class App implements OnInit, OnDestroy {
   private clockTimer?: ReturnType<typeof setInterval>;
   private toastTimer?: ReturnType<typeof setTimeout>;
   private loadedActiveFloorId: string | null = null;
+  private configReady = false;
 
   readonly currentTime = signal(this.formatClock(new Date()));
   readonly currentDate = signal(this.formatDate(new Date()));
@@ -67,6 +72,10 @@ export class App implements OnInit, OnDestroy {
   readonly bookingStartTime = signal('');
   readonly bookingEndTime = signal('');
   readonly bookingStartNow = signal(false);
+  readonly bookingAttendees = signal('');
+  readonly bookingNotes = signal('');
+  readonly bookingOnlineMeeting = signal(false);
+  readonly bookingSubmitting = signal(false);
   readonly bookingError = signal<string | null>(null);
   readonly bookingSuccessBanner = signal<string | null>(null);
 
@@ -93,13 +102,19 @@ export class App implements OnInit, OnDestroy {
 
   constructor() {
     effect(() => {
+      if (!this.auth.isAuthenticated()) {
+        this.bookingModalOpen.set(false);
+      }
+    });
+
+    effect(() => {
       const dev = this.store.activeDevice();
       this.engine?.setActiveKioskId(dev.resourceId);
     });
 
     effect(() => {
       const targetFloor = this.store.floorFilter();
-      if (this.engine && targetFloor && targetFloor !== this.loadedActiveFloorId) {
+      if (this.configReady && this.engine && targetFloor && targetFloor !== this.loadedActiveFloorId) {
         this.switchFloorScene(targetFloor);
       }
     });
@@ -174,8 +189,7 @@ export class App implements OnInit, OnDestroy {
       this.engine?.setAutoRotate(false);
     };
 
-    this.store.loadDataset();
-    this.bootFloorPlans();
+    this.bootApplication();
     this.bumpIdle();
   }
 
@@ -183,6 +197,7 @@ export class App implements OnInit, OnDestroy {
     if (this.idleTimer) clearTimeout(this.idleTimer);
     if (this.clockTimer) clearInterval(this.clockTimer);
     if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.auth.dispose();
     this.engine?.dispose();
   }
 
@@ -191,6 +206,33 @@ export class App implements OnInit, OnDestroy {
   onUserActivity(): void {
     this.bumpIdle();
     this.engine?.setAutoRotate(false);
+  }
+
+  /**
+   * Loads runtime floor & kiosk configuration from `data/kiosk-config.json` first,
+   * validates Azure AD OAuth 2.0 + OIDC authentication, and then boots the default
+   * floor plan + background preloading of remaining floors.
+   */
+  private async bootApplication(): Promise<void> {
+    const runtimeCfg = await loadKioskConfig();
+    this.store.applyRuntimeConfig(runtimeCfg);
+
+    const authenticated = await this.auth.initialize(runtimeCfg.auth);
+    if (!authenticated) {
+      return;
+    }
+
+    this.configReady = true;
+    this.store.loadDataset();
+    await this.bootFloorPlans();
+  }
+
+  signIn(): void {
+    void this.auth.login();
+  }
+
+  signOut(): void {
+    void this.auth.logout();
   }
 
   /**
@@ -204,7 +246,7 @@ export class App implements OnInit, OnDestroy {
     await this.switchFloorScene(dev.floorId);
 
     // Preload remaining floors in the background into CacheStorage + memory
-    for (const cfg of FLOOR_CONFIGS) {
+    for (const cfg of this.store.floorConfigs()) {
       if (cfg.id === dev.floorId) continue;
       this.engine
         .preloadFloor(cfg.id, cfg.modelUrl)
@@ -218,7 +260,7 @@ export class App implements OnInit, OnDestroy {
 
   private async switchFloorScene(floorId: string): Promise<void> {
     if (!this.engine) return;
-    const cfg = getFloorConfig(floorId);
+    const cfg = getFloorConfig(floorId, this.store.floorConfigs());
     const alreadyInMemory = this.engine.isFloorInMemory(cfg.id);
     this.loadedActiveFloorId = cfg.id;
     this.loadingFloorName.set(cfg.id);
@@ -307,11 +349,15 @@ export class App implements OnInit, OnDestroy {
     this.bookingModalMode.set('create');
     this.editingReservation.set(null);
     this.bookingSubject.set('');
-    this.bookingOrganizer.set('');
+    this.bookingOrganizer.set(this.auth.user()?.name ?? '');
     this.bookingDate.set(this.store.filterDate());
     this.bookingStartTime.set(this.store.startTime());
     this.bookingEndTime.set(this.store.endTime());
     this.bookingStartNow.set(false);
+    this.bookingAttendees.set('');
+    this.bookingNotes.set('');
+    this.bookingOnlineMeeting.set(false);
+    this.bookingSubmitting.set(false);
     this.bookingError.set(null);
     this.bookingModalOpen.set(true);
   }
@@ -332,6 +378,10 @@ export class App implements OnInit, OnDestroy {
     this.bookingStartTime.set(res.startTime);
     this.bookingEndTime.set(res.endTime);
     this.bookingStartNow.set(res.status === 'started');
+    this.bookingAttendees.set((res.attendees ?? []).join(', '));
+    this.bookingNotes.set('');
+    this.bookingOnlineMeeting.set(!!res.isOnlineMeeting);
+    this.bookingSubmitting.set(false);
     this.bookingError.set(null);
     this.bookingModalOpen.set(true);
   }
@@ -342,10 +392,44 @@ export class App implements OnInit, OnDestroy {
     this.bookingError.set(null);
   }
 
-  submitBooking(): void {
+  async submitBooking(): Promise<void> {
+    if (this.bookingSubmitting()) return;
+    this.bookingError.set(null);
+
     if (this.bookingModalMode() === 'edit') {
       const target = this.editingReservation();
       if (!target) return;
+
+      const cleanSubject = this.bookingSubject().trim();
+      if (!cleanSubject) {
+        this.bookingError.set('Subject cannot be empty.');
+        return;
+      }
+
+      // Sync changes to Outlook Calendar if this reservation is linked to a Graph event
+      if (target.outlookEventId && this.auth.status() === 'authenticated') {
+        this.bookingSubmitting.set(true);
+        try {
+          await this.outlookCalendar.updateRoomEvent(target.outlookEventId, {
+            subject: cleanSubject,
+            ...(target.status === 'starting'
+              ? {
+                  date: this.bookingDate(),
+                  startTime: this.bookingStartTime(),
+                  endTime: this.bookingEndTime(),
+                }
+              : {}),
+          });
+        } catch (err) {
+          this.bookingError.set(
+            err instanceof Error ? err.message : 'Unable to update Outlook calendar event.',
+          );
+          return;
+        } finally {
+          this.bookingSubmitting.set(false);
+        }
+      }
+
       const result = this.store.updateReservation({
         id: target.id,
         subject: this.bookingSubject(),
@@ -359,12 +443,60 @@ export class App implements OnInit, OnDestroy {
         return;
       }
       this.closeBookingModal();
-      this.showToast(`Updated reservation "${result.reservation?.subject}"`);
+      this.showToast(
+        target.outlookEventId
+          ? `Updated Outlook reservation "${result.reservation?.subject}"`
+          : `Updated reservation "${result.reservation?.subject}"`,
+      );
       return;
     }
 
     const sel = this.store.selected();
     if (!sel) return;
+
+    const sMin = timeToMinutes(this.bookingStartTime());
+    const eMin = timeToMinutes(this.bookingEndTime());
+    if (eMin <= sMin) {
+      this.bookingError.set('End time must be after start time.');
+      return;
+    }
+
+    const exchangeId = sel.exchangeId?.trim() || '';
+    const attendeeEmails = this.bookingAttendees()
+      .split(/[,;\s]+/)
+      .map((e) => e.trim())
+      .filter((e) => e.includes('@'));
+
+    let outlookEventId: string | undefined;
+    let outlookWebLink: string | undefined;
+
+    // Book directly in Outlook / Exchange via Microsoft Graph when exchangeId is present
+    if (exchangeId && this.auth.status() === 'authenticated') {
+      this.bookingSubmitting.set(true);
+      try {
+        const created = await this.outlookCalendar.createRoomEvent({
+          roomName: sel.name,
+          exchangeId,
+          subject: this.bookingSubject(),
+          date: this.bookingDate(),
+          startTime: this.bookingStartTime(),
+          endTime: this.bookingEndTime(),
+          attendeeEmails,
+          notes: this.bookingNotes(),
+          isOnlineMeeting: this.bookingOnlineMeeting(),
+        });
+        outlookEventId = created.id;
+        outlookWebLink = created.webLink;
+      } catch (err) {
+        this.bookingError.set(
+          err instanceof Error ? err.message : 'Unable to create Outlook calendar event.',
+        );
+        return;
+      } finally {
+        this.bookingSubmitting.set(false);
+      }
+    }
+
     const result = this.store.createBooking({
       resourceId: sel.id,
       subject: this.bookingSubject(),
@@ -373,6 +505,10 @@ export class App implements OnInit, OnDestroy {
       startTime: this.bookingStartTime(),
       endTime: this.bookingEndTime(),
       startNow: this.bookingStartNow(),
+      outlookEventId,
+      outlookWebLink,
+      attendees: attendeeEmails,
+      isOnlineMeeting: this.bookingOnlineMeeting(),
     });
     if (!result.ok) {
       this.bookingError.set(result.error ?? 'Unable to complete booking.');
@@ -380,13 +516,26 @@ export class App implements OnInit, OnDestroy {
     }
     this.closeBookingModal();
     this.showToast(
-      `Booked ${sel.name} on ${this.formatDisplayDate(this.bookingDate())} (${this.formatTime12h(this.bookingStartTime())} – ${this.formatTime12h(this.bookingEndTime())})`,
+      outlookEventId
+        ? `Booked ${sel.name} in Outlook on ${this.formatDisplayDate(this.bookingDate())} (${this.formatTime12h(this.bookingStartTime())} – ${this.formatTime12h(this.bookingEndTime())})`
+        : `Booked ${sel.name} on ${this.formatDisplayDate(this.bookingDate())} (${this.formatTime12h(this.bookingStartTime())} – ${this.formatTime12h(this.bookingEndTime())})`,
     );
   }
 
   /** Cancels an upcoming reservation (status === 'starting'). */
-  onCancelReservation(res: Reservation, event?: Event): void {
+  async onCancelReservation(res: Reservation, event?: Event): Promise<void> {
     event?.stopPropagation();
+    if (res.outlookEventId && this.auth.status() === 'authenticated') {
+      try {
+        await this.outlookCalendar.cancelRoomEvent(res.outlookEventId);
+      } catch (err) {
+        this.showToast(
+          err instanceof Error ? err.message : 'Unable to cancel Outlook calendar event.',
+        );
+        return;
+      }
+    }
+
     const result = this.store.cancelReservation(res.id);
     if (!result.ok) {
       this.showToast(result.error ?? 'Unable to cancel reservation.');
@@ -395,7 +544,11 @@ export class App implements OnInit, OnDestroy {
     if (this.editingReservation()?.id === res.id) {
       this.closeBookingModal();
     }
-    this.showToast(`Cancelled upcoming reservation "${res.subject}".`);
+    this.showToast(
+      res.outlookEventId
+        ? `Cancelled Outlook reservation "${res.subject}".`
+        : `Cancelled upcoming reservation "${res.subject}".`,
+    );
   }
 
   /** Ends an active reservation (status === 'started'). */
