@@ -13,9 +13,9 @@ export interface BuildInfo {
 export const BUILD_INFO: BuildInfo = {
   "appName": "spaceboard-pc",
   "version": "0.0.0",
-  "commitId": "2a1d42644856d736b735a78d4350031b23a1d265",
-  "shortCommitId": "2a1d426",
-  "branch": "master",
-  "dirty": true,
-  "buildTime": "2026-11-25T07:29:00.294Z"
+  "commitId": "89defad52bfb1e487f806472c759f5fb01320afe",
+  "shortCommitId": "89defad",
+  "branch": "main",
+  "dirty": false,
+  "buildTime": "2026-11-25T04:32:02.835Z"
 } as const;

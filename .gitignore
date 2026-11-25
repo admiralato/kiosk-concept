@@ -1,5 +1,16 @@
-.DS_Store
+# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# Compiled output
 /dist
+/tmp
+/out-tsc
+/bazel-out
+
+# GLB files
+/assets
+/public/models
+
+# Node
 /node_modules
 assets/l13/l13-floorplan-base.glb
 assets/l13/l13-floorplan-desks_1.glb
@@ -17,3 +28,43 @@ assets/test-floorplan.sh3d
 public/models/floorplan.glb
 public/models/l13-floorplan.glb
 /assets
+npm-debug.log
+yarn-error.log
+
+# IDEs and editors
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/mcp.json
+.history/*
+
+# Miscellaneous
+/.angular/cache
+.sass-cache/
+/connect.lock
+/coverage
+/libpeerconnection.log
+testem.log
+/typings
+__screenshots__/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Large 3D binary models (kept locally & deployed directly to web server/CDN)
+*.glb
+
+# Auto-generated build version artifact (regenerated on npm start / npm run build)
+public/version.json
