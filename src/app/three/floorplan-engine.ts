@@ -7,7 +7,6 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 import { NavGrid, type Footprint } from '../wayfinding/nav-grid';
 import {
-  FLOOR_AMENITIES,
   formatResourcePropertyName,
   matchResource,
   NODE_PREFIX,
@@ -62,12 +61,20 @@ interface ResourceVisual {
   label: CSS2DObject;
   color: THREE.Color;
   status: AvailabilityStatus | null;
+  lastState: VisualState | null;
 }
 
 interface KioskBeacon {
   resource: KioskResource;
   group: THREE.Group;
   labelEl: HTMLElement;
+  pulseRing: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+  headMesh: THREE.Mesh;
+}
+
+interface CachedFloorNavData {
+  resources: KioskResource[];
+  wayfinder: Wayfinder;
 }
 
 /** In-memory cache entry for an already-parsed 3D floor plan. */
@@ -122,10 +129,18 @@ export class FloorplanEngine {
   private readonly bounds = new THREE.Box3();
   private readonly resizeObserver: ResizeObserver;
 
-  /** In-memory parsed floor cache keyed by floorId (e.g. 'Level 12', 'Level 13'). */
+  /** In-memory active floor 3D scene cache (LRU = 1 active floor to keep GPU/CPU RAM bounded). */
   private readonly floorCache = new Map<string, CachedFloorScene>();
+  /** Lightweight metadata + Wayfinder cache retained for all floors (~1–2 MB/floor, zero GPU VRAM). */
+  private readonly floorNavCache = new Map<string, CachedFloorNavData>();
   /** In-flight loading promises so concurrent load requests share work. */
   private readonly inFlightLoads = new Map<string, Promise<CachedFloorScene>>();
+  private readonly inFlightPreloads = new Map<string, Promise<CachedFloorNavData>>();
+
+  /** Reusable scratch objects to prevent per-frame garbage collection pressure. */
+  private readonly tmpSpherical = new THREE.Spherical();
+  private readonly tmpNdc = new THREE.Vector2();
+  private readonly tmpVec = new THREE.Vector3();
 
   private activeFloor?: CachedFloorScene;
   private activeKioskId = 'WAYFINDING_KIOSK_L12_1';
@@ -144,11 +159,14 @@ export class FloorplanEngine {
   private hoverPending: PointerEvent | null = null;
   private raf = 0;
   private elapsed = 0;
+  private lastActivityAt = performance.now();
+  private lastRenderAt = 0;
+  private isTabHidden = typeof document !== 'undefined' ? document.hidden : false;
   private disposed = false;
 
   constructor(private readonly host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.toneMappingExposure = 1.05;
@@ -164,13 +182,15 @@ export class FloorplanEngine {
 
     this.scene.background = new THREE.Color('#e8edf3');
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const envScene = new RoomEnvironment();
+    this.scene.environment = pmrem.fromScene(envScene, 0.04).texture;
     this.scene.environmentIntensity = 0.55;
+    envScene.dispose();
     pmrem.dispose();
 
     this.scene.add(new THREE.HemisphereLight('#ffffff', '#b9c2cf', 1.0));
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.bias = -0.0005;
     this.sun.shadow.normalBias = 0.02;
     this.scene.add(this.sun, this.sun.target);
@@ -186,21 +206,31 @@ export class FloorplanEngine {
     this.controls.zoomToCursor = true;
     this.controls.addEventListener('start', () => {
       this.camAnim = null;
+      this.markActivity();
       this.onInteraction?.();
     });
-    this.controls.addEventListener('change', () => this.clampTarget());
+    this.controls.addEventListener('change', () => {
+      this.markActivity();
+      this.clampTarget();
+    });
 
     const el = this.renderer.domElement;
     el.addEventListener('pointerdown', this.handlePointerDown);
     el.addEventListener('pointerup', this.handlePointerUp);
     el.addEventListener('pointermove', this.handlePointerMove);
-    el.addEventListener('pointerleave', () => this.setHovered(null));
+    el.addEventListener('pointerleave', this.handlePointerLeave);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
 
-    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver = new ResizeObserver(() => {
+      this.markActivity();
+      this.resize();
+    });
     this.resizeObserver.observe(host);
     this.resize();
     this.timer.connect(document);
-    this.loop();
+    if (!this.isTabHidden) {
+      this.loop();
+    }
   }
 
   // ================================================================ loading & caching
@@ -233,22 +263,73 @@ export class FloorplanEngine {
   }
 
   /**
-   * Preloads a floor plan in the background (without switching the active 3D scene)
-   * so multi-floor wayfinding and floor switching are instant.
+   * Preloads a floor plan's disk cache + lightweight navigation data (`resources` & `Wayfinder`)
+   * in the background, then immediately disposes the temporary 3D meshes so inactive floors
+   * consume zero GPU VRAM while multi-floor search & wayfinding remain instant.
    */
   async preloadFloor(
     floorId: string,
     url: string,
     onProgress?: (fraction: number) => void,
   ): Promise<LoadResult> {
-    const wasInMemory = this.floorCache.has(floorId);
-    const cached = await this.ensureFloorLoaded(floorId, url, onProgress);
-    return {
-      floorId,
-      resources: cached.resources,
-      wayfinder: cached.wayfinder,
-      fromCache: wasInMemory,
+    const existingScene = this.floorCache.get(floorId);
+    if (existingScene) {
+      onProgress?.(1);
+      return {
+        floorId,
+        resources: existingScene.resources,
+        wayfinder: existingScene.wayfinder,
+        fromCache: true,
+      };
+    }
+
+    const existingNav = this.floorNavCache.get(floorId);
+    if (existingNav) {
+      onProgress?.(1);
+      return {
+        floorId,
+        resources: existingNav.resources,
+        wayfinder: existingNav.wayfinder,
+        fromCache: true,
+      };
+    }
+
+    let promise = this.inFlightPreloads.get(floorId);
+    if (!promise) {
+      promise = this.extractNavDataAndDispose(floorId, url, onProgress);
+      this.inFlightPreloads.set(floorId, promise);
+    }
+
+    try {
+      const nav = await promise;
+      this.floorNavCache.set(floorId, nav);
+      return {
+        floorId,
+        resources: nav.resources,
+        wayfinder: nav.wayfinder,
+        fromCache: false,
+      };
+    } finally {
+      this.inFlightPreloads.delete(floorId);
+    }
+  }
+
+  /**
+   * Parses a background floor GLB (populating persistent CacheStorage), extracts its
+   * resources & NavGrid/Wayfinder, and immediately disposes all Three.js geometries/materials/textures.
+   */
+  private async extractNavDataAndDispose(
+    floorId: string,
+    url: string,
+    onProgress?: (fraction: number) => void,
+  ): Promise<CachedFloorNavData> {
+    const built = await this.parseAndBuildFloor(floorId, url, onProgress, true);
+    const navData: CachedFloorNavData = {
+      resources: built.resources,
+      wayfinder: built.wayfinder,
     };
+    disposeObjectTree(built.rootGroup);
+    return navData;
   }
 
   private async ensureFloorLoaded(
@@ -280,6 +361,7 @@ export class FloorplanEngine {
     floorId: string,
     url: string,
     onProgress?: (fraction: number) => void,
+    navOnly = false,
   ): Promise<CachedFloorScene> {
     const arrayBuffer = await fetchCachedGlbBuffer(url, onProgress);
 
@@ -303,7 +385,11 @@ export class FloorplanEngine {
     const doors = group('doors', NODE_PREFIX.door);
     const furniture = group('furniture', NODE_PREFIX.furniture);
 
-    for (const c of ceilings) c.visible = false;
+    // Dispose and detach hidden ceiling meshes immediately so they don't occupy GPU/CPU memory
+    for (const c of ceilings) {
+      c.removeFromParent();
+      disposeObjectTree(c);
+    }
 
     model.traverse((o) => {
       const mesh = o as THREE.Mesh;
@@ -393,49 +479,26 @@ export class FloorplanEngine {
       obstacles.push({ minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z });
     }
 
-    // Seed built-in Restroom (Male, Female, PWD Accessible) & Nursing Room signage for this floor
-    // Skip any amenity sub-type that was already discovered directly from the GLB (e.g. TOILET_MALE_L13)
-    const existingAmenityTypes = new Set(
-      resources.filter((r) => r.kind === 'amenity').map((r) => r.resourceType),
-    );
-    for (const seed of FLOOR_AMENITIES[floorId] ?? []) {
-      if (objects.has(seed.id) || existingAmenityTypes.has(seed.resourceType)) continue;
-      const b = seed.bounds;
-      const cx = (b.minX + b.maxX) / 2;
-      const cz = (b.minZ + b.maxZ) / 2;
-      const dummy = new THREE.Object3D();
-      dummy.name = `amenity:${seed.id}`;
-      dummy.position.set(cx, 0, cz);
-      model.add(dummy);
-      const r: KioskResource = {
-        id: seed.id,
-        kind: 'amenity',
-        name: seed.name,
-        code: seed.code,
-        level: seed.level,
-        site: 'Marina Bay Tower',
-        floor: seed.floor,
-        resourceType: seed.resourceType,
-        capacity: 0,
-        equipment: [],
-        description: seed.description,
-        bookable: false,
-        center: { x: cx, z: cz },
-        bounds: { ...b },
-        anchor: null,
-      };
-      resources.push(r);
-      objects.set(r.id, dummy);
-    }
-
     // ---- navigation -------------------------------------------------------
-    const grid = NavGrid.build({
-      floors: [trianglesOf(floors)],
-      walls: [trianglesOf(walls), trianglesOf(lifts)],
-      obstacles,
-    });
-    const firstKiosk = resources.find((r) => r.kind === 'kiosk')?.id;
-    const wayfinder = new Wayfinder(grid, resources, firstKiosk);
+    const cachedNav = this.floorNavCache.get(floorId);
+    let wayfinder: Wayfinder;
+    if (cachedNav) {
+      wayfinder = cachedNav.wayfinder;
+      // Restore previously snapped anchors onto freshly parsed resources
+      const anchorById = new Map(cachedNav.resources.map((r) => [r.id, r.anchor]));
+      for (const r of resources) {
+        r.anchor = anchorById.get(r.id) ?? null;
+      }
+    } else {
+      const grid = NavGrid.build({
+        floors: [trianglesOf(floors)],
+        walls: [trianglesOf(walls), trianglesOf(lifts)],
+        obstacles,
+      });
+      const firstKiosk = resources.find((r) => r.kind === 'kiosk')?.id;
+      wayfinder = new Wayfinder(grid, resources, firstKiosk);
+      this.floorNavCache.set(floorId, { resources, wayfinder });
+    }
 
     // ---- build floor root group -------------------------------------------
     const rootGroup = new THREE.Group();
@@ -443,6 +506,21 @@ export class FloorplanEngine {
     rootGroup.add(model);
 
     const floorBounds = new THREE.Box3().setFromObject(model);
+    if (navOnly) {
+      return {
+        floorId,
+        url,
+        rootGroup,
+        bounds: floorBounds,
+        structural: [],
+        hanging: [],
+        visuals: new Map(),
+        kioskBeacons: new Map(),
+        pickables: [],
+        resources,
+        wayfinder,
+      };
+    }
     const structural = [model.getObjectByName('walls'), model.getObjectByName('doors')].filter(
       (o): o is THREE.Object3D => !!o,
     );
@@ -490,9 +568,14 @@ export class FloorplanEngine {
   }
 
   private activateFloorScene(target: CachedFloorScene): void {
-    if (this.activeFloor && this.activeFloor !== target) {
-      this.toggleCss2DLabels(this.activeFloor.rootGroup, false);
-      this.scene.remove(this.activeFloor.rootGroup);
+    const prev = this.activeFloor;
+    if (prev && prev !== target) {
+      this.toggleCss2DLabels(prev.rootGroup, false);
+      this.scene.remove(prev.rootGroup);
+      // Evict and dispose inactive floor's 3D geometries/materials/textures so only
+      // 1 floor's GPU/CPU meshes reside in memory at a time (NavGrid stays in floorNavCache).
+      this.floorCache.delete(prev.floorId);
+      disposeObjectTree(prev.rootGroup);
     }
 
     this.activeFloor = target;
@@ -510,6 +593,7 @@ export class FloorplanEngine {
     this.computeHomeView();
     this.goHome(false);
     this.renderer.shadowMap.needsUpdate = true;
+    this.markActivity();
   }
 
   private toggleCss2DLabels(root: THREE.Object3D, visible: boolean): void {
@@ -698,6 +782,7 @@ export class FloorplanEngine {
       label,
       color,
       status: defaultStatus,
+      lastState: null,
     };
   }
 
@@ -787,7 +872,7 @@ export class FloorplanEngine {
     label.position.set(0, 2.0, 0);
     label.center.set(0.5, 1);
     g.add(label);
-    return { resource: r, group: g, labelEl: el };
+    return { resource: r, group: g, labelEl: el, pulseRing: ring, headMesh: head };
   }
 
   // ============================================================ public API
@@ -822,6 +907,7 @@ export class FloorplanEngine {
 
   setSelected(id: string | null): void {
     this.selected = id;
+    this.markActivity();
   }
 
   showRoute(route: Route | null): void {
@@ -915,13 +1001,50 @@ export class FloorplanEngine {
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    const el = this.renderer.domElement;
+    el.removeEventListener('pointerdown', this.handlePointerDown);
+    el.removeEventListener('pointerup', this.handlePointerUp);
+    el.removeEventListener('pointermove', this.handlePointerMove);
+    el.removeEventListener('pointerleave', this.handlePointerLeave);
     this.resizeObserver.disconnect();
     this.controls.dispose();
     this.timer.dispose();
+    for (const floor of this.floorCache.values()) {
+      this.scene.remove(floor.rootGroup);
+      disposeObjectTree(floor.rootGroup);
+    }
+    this.floorCache.clear();
+    this.floorNavCache.clear();
+    this.routeVisual.clear();
+    if (this.scene.environment) {
+      this.scene.environment.dispose();
+      this.scene.environment = null;
+    }
     this.renderer.dispose();
     this.renderer.domElement.remove();
     this.labelRenderer.domElement.remove();
   }
+
+  private markActivity(): void {
+    this.lastActivityAt = performance.now();
+  }
+
+  private handleVisibilityChange = () => {
+    this.isTabHidden = document.hidden;
+    if (this.isTabHidden) {
+      cancelAnimationFrame(this.raf);
+      this.raf = 0;
+    } else if (!this.disposed && !this.raf) {
+      this.markActivity();
+      this.timer.reset();
+      this.loop();
+    }
+  };
+
+  private handlePointerLeave = () => {
+    this.setHovered(null);
+  };
 
   // ============================================================== picking
 
@@ -948,11 +1071,11 @@ export class FloorplanEngine {
     const floor = this.activeFloor;
     if (!floor) return null;
     const rect = this.renderer.domElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(
+    this.tmpNdc.set(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
       -((e.clientY - rect.top) / rect.height) * 2 + 1,
     );
-    this.raycaster.setFromCamera(ndc, this.camera);
+    this.raycaster.setFromCamera(this.tmpNdc, this.camera);
     const hits = this.raycaster.intersectObjects(floor.pickables, false);
     if (!hits.length) return null;
     // Prefer specific desk/lift pick volumes over room volumes/floor plates
@@ -965,6 +1088,7 @@ export class FloorplanEngine {
   private setHovered(id: string | null): void {
     if (this.hovered === id) return;
     this.hovered = id;
+    this.markActivity();
     this.renderer.domElement.style.cursor = id ? 'pointer' : '';
   }
 
@@ -1050,8 +1174,28 @@ export class FloorplanEngine {
   }
 
   private loop = () => {
-    if (this.disposed) return;
+    if (this.disposed || this.isTabHidden) {
+      this.raf = 0;
+      return;
+    }
     this.raf = requestAnimationFrame(this.loop);
+
+    const now = performance.now();
+    const isAnimating =
+      !!this.camAnim ||
+      Math.abs(this.wallScale - this.wallScaleTarget) > 1e-4 ||
+      !!this.hoverPending ||
+      this.controls.autoRotate ||
+      this.routeVisual.group.visible ||
+      this.selected !== null ||
+      now - this.lastActivityAt < 3000;
+
+    // When idle, throttle rendering to ~12 FPS to cut GPU/CPU & GC memory pressure by ~80%
+    if (!isAnimating && now - this.lastRenderAt < 80) {
+      return;
+    }
+    this.lastRenderAt = now;
+
     this.timer.update();
     const dt = Math.min(this.timer.getDelta(), 0.1);
     this.elapsed += dt;
@@ -1061,12 +1205,12 @@ export class FloorplanEngine {
       a.t = Math.min(1, a.t + dt / a.duration);
       const k = easeInOutCubic(a.t);
       this.controls.target.lerpVectors(a.fromTarget, a.toTarget, k);
-      const s = new THREE.Spherical(
+      this.tmpSpherical.set(
         THREE.MathUtils.lerp(a.from.radius, a.to.radius, k),
         THREE.MathUtils.lerp(a.from.phi, a.to.phi, k),
         THREE.MathUtils.lerp(a.from.theta, a.to.theta, k),
       );
-      this.camera.position.setFromSpherical(s).add(this.controls.target);
+      this.camera.position.setFromSpherical(this.tmpSpherical).add(this.controls.target);
       if (a.t >= 1) this.camAnim = null;
     }
 
@@ -1101,45 +1245,92 @@ export class FloorplanEngine {
           : this.endpoints.has(id) ? 'endpoint'
             : id === this.hovered ? 'hover'
               : 'idle';
-      const room = v.resource.kind === 'meeting-room';
-      const target = {
-        idle: room ? 0.44 : v.resource.bookable ? 0.36 : 0.22,
-        hover: room ? 0.62 : 0.52,
-        endpoint: 0.66,
-        selected: 0.58 + 0.18 * pulse,
-      }[state];
-      v.plateMaterial.opacity += (target - v.plateMaterial.opacity) * 0.2;
-      v.outline.material.opacity = state === 'idle' ? 0.35 : state === 'hover' ? 0.75 : 1.0;
-      const glow = {
-        idle: v.resource.bookable ? 0.14 : 0,
-        hover: 0.32,
-        endpoint: 0.4,
-        selected: 0.35 + 0.28 * pulse,
-      }[state];
-      for (const m of v.emissive) {
-        m.emissive.copy(v.color);
-        m.emissiveIntensity = glow;
+
+      let target: number;
+      let glow: number;
+      if (state === 'selected') {
+        target = 0.58 + 0.18 * pulse;
+        glow = 0.35 + 0.28 * pulse;
+      } else if (state === 'endpoint') {
+        target = 0.66;
+        glow = 0.4;
+      } else if (state === 'hover') {
+        target = v.resource.kind === 'meeting-room' ? 0.62 : 0.52;
+        glow = 0.32;
+      } else {
+        target = v.resource.kind === 'meeting-room' ? 0.44 : v.resource.bookable ? 0.36 : 0.22;
+        glow = v.resource.bookable ? 0.14 : 0;
       }
-      const el = v.label.element;
-      el.classList.toggle('is-selected', state === 'selected');
-      el.classList.toggle('is-endpoint', state === 'endpoint');
-      el.classList.toggle('is-hover', state === 'hover');
+
+      if (Math.abs(target - v.plateMaterial.opacity) > 0.001) {
+        v.plateMaterial.opacity += (target - v.plateMaterial.opacity) * 0.2;
+      }
+      const outlineOp = state === 'idle' ? 0.35 : state === 'hover' ? 0.75 : 1.0;
+      if (v.outline.material.opacity !== outlineOp) {
+        v.outline.material.opacity = outlineOp;
+      }
+      for (const m of v.emissive) {
+        if (m.emissiveIntensity !== glow || state !== v.lastState) {
+          m.emissive.copy(v.color);
+          m.emissiveIntensity = glow;
+        }
+      }
+      if (state !== v.lastState) {
+        v.lastState = state;
+        const el = v.label.element;
+        el.classList.toggle('is-selected', state === 'selected');
+        el.classList.toggle('is-endpoint', state === 'endpoint');
+        el.classList.toggle('is-hover', state === 'hover');
+      }
     }
   }
 
   private updateKioskBeacons(): void {
     const floor = this.activeFloor;
     if (!floor) return;
+    const p = (this.elapsed % 2) / 2;
+    const scale = 0.8 + p * 1.4;
+    const opacity = 1 - p;
+    const headY = 1.7 + Math.sin(this.elapsed * 2.5) * 0.05;
     for (const beacon of floor.kioskBeacons.values()) {
-      const g = beacon.group;
-      const ring = g.getObjectByName('pulse') as THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
-      const p = (this.elapsed % 2) / 2;
-      ring.scale.setScalar(0.8 + p * 1.4);
-      ring.material.opacity = 1 - p;
-      const head = g.getObjectByName('head')!;
-      head.position.y = 1.7 + Math.sin(this.elapsed * 2.5) * 0.05;
+      beacon.pulseRing.scale.setScalar(scale);
+      beacon.pulseRing.material.opacity = opacity;
+      beacon.headMesh.position.y = headY;
     }
   }
+}
+
+/** Recursively disposes Three.js geometries, materials, textures, and CSS2D DOM elements. */
+function disposeObjectTree(root: THREE.Object3D): void {
+  const textures = new Set<THREE.Texture>();
+  const materials = new Set<THREE.Material>();
+  const geometries = new Set<THREE.BufferGeometry>();
+
+  root.traverse((obj) => {
+    if (obj instanceof CSS2DObject) {
+      obj.element.remove();
+    }
+    const mesh = obj as THREE.Mesh;
+    if (mesh.geometry) {
+      geometries.add(mesh.geometry);
+    }
+    const mat = mesh.material;
+    if (mat) {
+      const list = Array.isArray(mat) ? mat : [mat];
+      for (const m of list) {
+        materials.add(m);
+        for (const val of Object.values(m as unknown as Record<string, unknown>)) {
+          if (val && typeof val === 'object' && (val as THREE.Texture).isTexture) {
+            textures.add(val as THREE.Texture);
+          }
+        }
+      }
+    }
+  });
+
+  for (const t of textures) t.dispose();
+  for (const m of materials) m.dispose();
+  for (const g of geometries) g.dispose();
 }
 
 function easeInOutCubic(t: number): number {

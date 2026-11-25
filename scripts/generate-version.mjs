@@ -34,7 +34,9 @@ const branch =
   process.env.GITHUB_REF_NAME ||
   process.env.CI_COMMIT_BRANCH ||
   'unknown';
-const dirty = Boolean(runGit('git status --porcelain'));
+const dirty = Boolean(
+  runGit("git status --porcelain -- ':!public/version.json' ':!src/app/shared/build-info.ts'"),
+);
 const buildTime = new Date().toISOString();
 
 const info = {

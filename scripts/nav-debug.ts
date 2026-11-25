@@ -9,7 +9,6 @@ import { MeshoptDecoder } from 'meshoptimizer';
 import { writeFileSync } from 'node:fs';
 import { NavGrid, type Footprint, type TriangleSource, type Vec2 } from '../src/app/wayfinding/nav-grid';
 import {
-  FLOOR_AMENITIES,
   HOME_KIOSK_ID,
   matchResource,
   NODE_PREFIX,
@@ -97,14 +96,6 @@ async function main() {
     if (r?.rule.kind !== 'meeting-room' && r?.rule.kind !== 'amenity') continue;
     const b = bounds([n]);
     targets.push({ id: r.rule.id(r.match), p: { x: (b.minX + b.maxX) / 2, z: (b.minZ + b.maxZ) / 2 }, region: b });
-  }
-  const floorKey = homeId.includes('L13') ? 'Level 13' : 'Level 12';
-  for (const seed of FLOOR_AMENITIES[floorKey] ?? []) {
-    const b = seed.bounds;
-    targets.push({
-      id: seed.id,
-      p: { x: (b.minX + b.maxX) / 2, z: (b.minZ + b.maxZ) / 2 },
-    });
   }
   for (const l of lifts) {
     const r = matchResource(l.getName())!;

@@ -89,11 +89,11 @@ export const RESOURCE_RULES: ResourceRule[] = [
     level: (m) => m[2],
   },
   {
-    // door_WAYFINDING_LIFT_12_1, door_WAYFINDING_LIFT_13_1, or door_Lifts_L13_1..8
+    // door_WAYFINDING_LIFT_12_1, door_LIFT_12_1, door_WAYFINDING_LIFT_13_1, or door_Lifts_L13_1..8
     kind: 'lift',
     defaultSubType: 'Lift',
     defaultCapacity: 0,
-    pattern: /^door_(?:(WAYFINDING_LIFT_(\d+)_(\d+))|(Lifts_L(\d+)_(\d+)))$/,
+    pattern: /^door_(?:((?:WAYFINDING_)?LIFT_(\d+)_(\d+))|(Lifts_L(\d+)_(\d+)))$/,
     id: (m) => m[1] ?? m[4],
     name: (m) => `Lift ${m[3] ?? m[6]} (L${m[2] ?? m[5]})`,
     code: (m) => `Lift ${m[3] ?? m[6]}`,

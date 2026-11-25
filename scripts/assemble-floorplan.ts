@@ -268,9 +268,11 @@ async function main() {
     .filter((f) => f.toLowerCase().endsWith('.glb') && !f.startsWith('.'))
     .sort();
 
-  const baseFile = allGlbs.find((f) => f.toLowerCase().includes('-base.glb'));
+  const baseFile =
+    allGlbs.find((f) => f.toLowerCase().includes('-base.glb')) ??
+    (allGlbs.length === 1 ? allGlbs[0] : undefined);
   if (!baseFile) {
-    throw new Error(`No *-base.glb file found in ${inputDir}`);
+    throw new Error(`No *-base.glb (or single .glb) file found in ${inputDir}`);
   }
   const overlayFiles = allGlbs.filter((f) => f !== baseFile);
 

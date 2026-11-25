@@ -99,7 +99,7 @@ export class KioskStore {
   /** Currently viewed 3D floor plan ('Level 12' or 'Level 13'). */
   readonly floorFilter = signal<string>(this.initialDevice.floorId);
   /** Whether the directory list searches across all loaded floors or only the active floor. */
-  readonly searchAllFloors = signal<boolean>(true);
+  readonly searchAllFloors = signal<boolean>(false);
   readonly query = signal('');
   readonly filter = signal<KindFilter>('all');
   readonly resourceTypeFilter = signal<ResourceTypeFilter>('all');
@@ -380,6 +380,9 @@ export class KioskStore {
    * When viewing a specific leg of a multi-floor route (`viewRouteFloor()`), `clearNavigation` is false.
    */
   setFloor(floorId: string, clearNavigation = true): void {
+    if (clearNavigation) {
+      this.searchAllFloors.set(false);
+    }
     if (this.floorFilter() === floorId) return;
     this.floorFilter.set(floorId);
 
