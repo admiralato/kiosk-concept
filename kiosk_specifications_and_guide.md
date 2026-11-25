@@ -317,6 +317,12 @@ SpaceBoard PC authenticates users via **OAuth 2.0 Authorization Code Flow with P
 * **Login Once & Cross-Device Logout Revalidation**:
   * Users sign in once via Microsoft **Redirect flow** (`loginRedirect`), preserving `?kioskId=` across the redirect.
   * On startup, on tab focus/visibility return, and every `revalidateIntervalSeconds` (default `300 s`), SpaceBoard PC runs `acquireTokenSilent({ forceRefresh: true })`. If the user logged out or had their session revoked on another device/browser (`InteractionRequiredAuthError` / `invalid_grant`), SpaceBoard PC immediately transitions to the re-authentication screen and prompts the user to sign in again.
+  * **Local User Database & Demo Login (`auth.local`)**:
+    * The Sign-In modal also supports Username & Password authentication alongside Microsoft Entra ID, configured at runtime under `auth.local` in [public/data/kiosk-config.json](file:///Volumes/LaCie/learn/3DKiosk/public/data/kiosk-config.json):
+      * `loginUrl`: Backend API `POST` endpoint (`{ username, password }` $\rightarrow$ `{ accessToken, user: { id, name, email } }`).
+      * `validateUrl`: Optional Backend API `GET` endpoint (called with `Authorization: Bearer <token>` on startup/focus/timer to detect revoked sessions).
+      * `logoutUrl`: Optional Backend API `POST` endpoint called on Sign Out.
+      * `demoLoginEnabled`: When `true`, enables the built-in hardcoded demo credential (`demo` / `demo123`) and a one-click **Use Demo Login** button in the Sign-In modal. Set to `false` in production once your backend API is live.
   * Set `"auth": { "enabled": false }` in `data/kiosk-config.json` to bypass login during local offline testing.
 
 ### 6.4 Configuring Physical Kiosk Terminals

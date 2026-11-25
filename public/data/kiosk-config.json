@@ -8,7 +8,14 @@
     "apiScopes": [],
     "redirectUri": "",
     "postLogoutRedirectUri": "",
-    "revalidateIntervalSeconds": 300
+    "revalidateIntervalSeconds": 300,
+    "local": {
+      "enabled": true,
+      "loginUrl": "",
+      "validateUrl": "",
+      "logoutUrl": "",
+      "demoLoginEnabled": true
+    }
   },
   "floors": [
     {

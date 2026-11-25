@@ -1,0 +1,462 @@
+<aside class="sidebar" [class.is-collapsed]="collapsed()">
+  <button
+    type="button"
+    class="sidebar-toggle"
+    (click)="collapsed.set(!collapsed())"
+    [attr.aria-label]="collapsed() ? 'Expand panel' : 'Collapse panel'"
+  >
+    <svg viewBox="0 0 24 24" width="18" height="18">
+      @if (collapsed()) {
+        <path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
+      } @else {
+        <path fill="currentColor" d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z" />
+      }
+    </svg>
+  </button>
+
+  <div class="sidebar-inner">
+    <!-- Primary Mode Switcher: Find & Book vs Wayfinding -->
+    <div class="mode-switcher">
+      <button
+        type="button"
+        class="mode-btn"
+        [class.is-active]="activeTab() === 'search'"
+        (click)="activeTab.set('search')"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16">
+          <path
+            fill="currentColor"
+            d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"
+          />
+        </svg>
+        <span>Find &amp; Book</span>
+      </button>
+      <button
+        type="button"
+        class="mode-btn"
+        [class.is-active]="activeTab() === 'wayfinding'"
+        (click)="activeTab.set('wayfinding')"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16">
+          <path
+            fill="currentColor"
+            d="M21.71 11.29l-9-9a.996.996 0 00-1.41 0l-9 9a.996.996 0 000 1.41l9 9c.39.39 1.02.39 1.41 0l9-9a.996.996 0 000-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"
+          />
+        </svg>
+        <span>Wayfinding</span>
+        @if (store.route()) {
+          <span class="active-route-dot"></span>
+        }
+      </button>
+    </div>
+
+    <!-- TAB 1: SEARCH & BOOKING FILTERS -->
+    @if (activeTab() === 'search') {
+      <section class="filters-panel">
+        <div class="filters-grid">
+          <div class="filter-field">
+            <label>Site</label>
+            <select
+              [ngModel]="store.siteFilter()"
+              (ngModelChange)="store.siteFilter.set($event)"
+            >
+              @for (s of store.sites(); track s) {
+                <option [value]="s">{{ s }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="filter-field">
+            <label>3D Floor View</label>
+            <select
+              [ngModel]="store.floorFilter()"
+              (ngModelChange)="store.setFloor($event)"
+            >
+              @for (fl of store.floors(); track fl) {
+                <option [value]="fl">{{ fl }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="filter-field">
+            <label>Date (Day)</label>
+            <input
+              type="date"
+              [ngModel]="store.filterDate()"
+              (ngModelChange)="store.filterDate.set($event)"
+            />
+          </div>
+
+          <div class="filter-field">
+            <label>Resource Type</label>
+            <select
+              [ngModel]="store.resourceTypeFilter()"
+              (ngModelChange)="store.resourceTypeFilter.set($event)"
+            >
+              <option value="all">All Types</option>
+              @for (rt of store.resourceTypes(); track rt) {
+                <option [value]="rt">{{ rt }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="filter-field">
+            <label>Start Time</label>
+            <select
+              [ngModel]="store.startTime()"
+              (ngModelChange)="store.setStartTime($event)"
+            >
+              @for (slot of timeSlots; track slot) {
+                <option [value]="slot">{{ formatTime12h(slot) }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="filter-field">
+            <label>End Time</label>
+            <select
+              [ngModel]="store.endTime()"
+              (ngModelChange)="store.setEndTime($event)"
+            >
+              @for (slot of timeSlots; track slot) {
+                <option [value]="slot">{{ formatTime12h(slot) }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Equipment Multi-Select & Available Only Toggle -->
+        <div class="filter-extras">
+          <button
+            type="button"
+            class="equip-toggle-btn"
+            [class.has-selection]="store.selectedEquipment().length > 0"
+            (click)="showEquipmentFilter.set(!showEquipmentFilter())"
+          >
+            <span>
+              Equipment
+              @if (store.selectedEquipment().length > 0) {
+                ({{ store.selectedEquipment().length }})
+              }
+            </span>
+            <svg viewBox="0 0 24 24" width="14" height="14">
+              <path fill="currentColor" d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+
+          <label class="avail-Switch">
+            <input
+              type="checkbox"
+              [ngModel]="store.onlyAvailable()"
+              (ngModelChange)="store.onlyAvailable.set($event)"
+            />
+            <span>Available</span>
+          </label>
+
+          <label class="avail-Switch" title="Show resources across all floors">
+            <input
+              type="checkbox"
+              [ngModel]="store.searchAllFloors()"
+              (ngModelChange)="store.searchAllFloors.set($event)"
+            />
+            <span>All Floors</span>
+          </label>
+
+          @if (
+            store.query() ||
+            store.resourceTypeFilter() !== 'all' ||
+            store.selectedEquipment().length > 0 ||
+            store.onlyAvailable()
+          ) {
+            <button type="button" class="text-btn" (click)="store.clearFilters()">Reset</button>
+          }
+        </div>
+
+        @if (showEquipmentFilter()) {
+          <div class="equip-chips">
+            @for (eq of store.equipmentOptions(); track eq) {
+              <button
+                type="button"
+                class="equip-chip"
+                [class.is-selected]="store.selectedEquipment().includes(eq)"
+                (click)="store.toggleEquipment(eq)"
+              >
+                {{ eq }}
+              </button>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    <!-- TAB 2: WAYFINDING PLANNER (Single & Multi-Floor) -->
+    @if (activeTab() === 'wayfinding') {
+      <section class="wayfinding-card">
+        <div class="section-header">
+          <div class="section-title-group">
+            <svg viewBox="0 0 24 24" width="18" height="18" class="accent-icon">
+              <path
+                fill="currentColor"
+                d="M21.71 11.29l-9-9a.996.996 0 00-1.41 0l-9 9a.996.996 0 000 1.41l9 9c.39.39 1.02.39 1.41 0l9-9a.996.996 0 000-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"
+              />
+            </svg>
+            <h2>Multi-Floor Route Planner</h2>
+          </div>
+          @if (store.route() || store.toId() || store.fromId() !== store.homeKioskId()) {
+            <button type="button" class="text-btn" (click)="store.clearRoute()">Clear Route</button>
+          }
+        </div>
+
+        <div class="route-inputs">
+          <div class="route-row">
+            <span class="route-marker route-marker--start"></span>
+            <div class="route-field">
+              <label for="fromSelect">From</label>
+              <select
+                id="fromSelect"
+                [ngModel]="store.fromId()"
+                (ngModelChange)="store.setFrom($event)"
+              >
+                @for (p of store.places(); track p.id) {
+                  <option [value]="p.id">
+                    [L{{ p.level }}] {{ p.id === store.homeKioskId() ? 'You Are Here (' + p.code + ')' : p.name + ' (' + p.code + ')' }}
+                  </option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="route-row">
+            <span class="route-marker route-marker--end"></span>
+            <div class="route-field">
+              <label for="toSelect">To Destination</label>
+              <select
+                id="toSelect"
+                [ngModel]="store.toId() ?? ''"
+                (ngModelChange)="$event ? store.setTo($event) : store.clearRoute()"
+              >
+                <option value="">Select a destination...</option>
+                @for (p of store.places(); track p.id) {
+                  @if (p.id !== store.fromId()) {
+                    <option [value]="p.id">
+                      [L{{ p.level }}] {{ p.id === store.homeKioskId() ? 'You Are Here (' + p.code + ')' : p.name + ' (' + p.code + ')' }}
+                    </option>
+                  }
+                }
+              </select>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="swap-btn"
+            [disabled]="!store.toId()"
+            (click)="store.swap()"
+            title="Swap start and destination"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path
+                fill="currentColor"
+                d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        @if (store.routeError()) {
+          <div class="route-alert">{{ store.routeError() }}</div>
+        }
+
+        @if (store.route(); as route) {
+          <div class="route-summary">
+            <div class="route-metrics">
+              <div class="metric">
+                <span class="metric-val">{{ formatDuration(route.seconds) }}</span>
+                <span class="metric-lbl">Est. Time</span>
+              </div>
+              <div class="metric-divider"></div>
+              <div class="metric">
+                <span class="metric-val">{{ formatDistance(route.length) }}</span>
+                <span class="metric-lbl">Walk Dist</span>
+              </div>
+              <div class="metric-divider"></div>
+              <div class="metric">
+                <span class="metric-val">
+                  @if (route.multiFloor) {
+                    L{{ route.from.level }} &rarr; L{{ route.to.level }}
+                  } @else {
+                    {{ route.from.floor }}
+                  }
+                </span>
+                <span class="metric-lbl">{{ route.multiFloor ? 'Via Lift' : 'Floor' }}</span>
+              </div>
+            </div>
+
+            <!-- Multi-floor segment switcher pills -->
+            @if (route.multiFloor && route.segments) {
+              <div class="segment-pills">
+                @for (seg of route.segments; track seg.floor; let idx = $index) {
+                  <button
+                    type="button"
+                    class="segment-pill"
+                    [class.is-active]="store.floorFilter() === seg.floor"
+                    (click)="store.viewRouteFloor(seg.floor)"
+                  >
+                    <span class="segment-badge">Leg {{ idx + 1 }}</span>
+                    <span>{{ seg.floor }} ({{ formatDistance(seg.length) }})</span>
+                  </button>
+                }
+              </div>
+            }
+
+            <div class="steps-list">
+              @for (step of route.steps; track $index) {
+                <div
+                  class="step-item"
+                  [class.is-arrive]="step.turn === 'arrive'"
+                  [class.is-lift]="step.turn === 'lift'"
+                  [class.is-active-floor]="step.floor === store.floorFilter()"
+                  (click)="stepClick.emit(step)"
+                >
+                  <div class="step-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16">
+                      <path fill="currentColor" [attr.d]="turnIcon(step.turn)" />
+                    </svg>
+                  </div>
+                  <div class="step-body">
+                    <span class="step-text">{{ step.text }}</span>
+                    <div class="step-meta">
+                      @if (route.multiFloor && step.floor) {
+                        <span class="step-floor-tag">L{{ step.floor.replace('Level ', '') }}</span>
+                      }
+                      @if (step.distance > 0.4) {
+                        <span class="step-dist">{{ formatDistance(step.distance) }}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- Resource Directory List -->
+    <section class="directory-section">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" width="18" height="18" class="search-icon">
+          <path
+            fill="currentColor"
+            d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+          />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search rooms, desks, equipment..."
+          [ngModel]="store.query()"
+          (ngModelChange)="store.query.set($event)"
+        />
+        @if (store.query()) {
+          <button
+            type="button"
+            class="clear-search"
+            (click)="store.query.set('')"
+            aria-label="Clear search"
+          >
+            &times;
+          </button>
+        }
+      </div>
+
+      <div class="filter-tabs">
+        @for (tab of kindFilters; track tab.id) {
+          <button
+            type="button"
+            class="filter-tab"
+            [class.is-active]="store.filter() === tab.id"
+            (click)="store.filter.set(tab.id)"
+          >
+            <span>{{ tab.label }}</span>
+            <span class="tab-count">{{ store.counts()[tab.id] || 0 }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="resource-list">
+        @for (item of store.filtered(); track item.id) {
+          @let status = store.statusOf(item.id);
+          <div
+            class="resource-card"
+            [class.is-selected]="store.selectedId() === item.id"
+            (click)="selectResource.emit(item.id)"
+          >
+            <div class="resource-swatch" [style.background]="resourceSwatch(item)">
+              {{ item.code }}
+            </div>
+
+            <div class="resource-info">
+              <div class="resource-title-row">
+                <span class="resource-name">{{ item.name }}</span>
+                @if (item.bookable) {
+                  <span class="status-pill" [attr.data-status]="status">
+                    <span class="status-dot" [style.background]="statusColor(status)"></span>
+                    {{ statusLabel(status) }}
+                  </span>
+                }
+              </div>
+              <div class="resource-meta">
+                <span class="floor-chip">L{{ item.level }}</span>
+                <span>&bull;</span>
+                <span>{{ item.resourceType }}</span>
+                @if (item.capacity > 0) {
+                  <span>&bull;</span>
+                  <span>{{ item.capacity }} {{ item.capacity === 1 ? 'person' : 'people' }}</span>
+                }
+              </div>
+              @if (item.equipment.length > 0) {
+                <div class="resource-equip-line">
+                  {{ item.equipment.slice(0, 3).join(', ') }}
+                </div>
+              }
+            </div>
+
+            <div class="resource-actions">
+              @if (item.bookable && status === 'available') {
+                <button
+                  type="button"
+                  class="book-mini-btn"
+                  (click)="onBookClick(item, $event)"
+                  title="Book {{ item.name }}"
+                >
+                  Book
+                </button>
+              }
+              <button
+                type="button"
+                class="go-btn"
+                [class.is-active]="store.toId() === item.id"
+                (click)="onNavigateClick(item.id, $event)"
+                title="Navigate to {{ item.name }}"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path
+                    fill="currentColor"
+                    d="M21.71 11.29l-9-9a.996.996 0 00-1.41 0l-9 9a.996.996 0 000 1.41l9 9c.39.39 1.02.39 1.41 0l9-9a.996.996 0 000-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-state">
+            <p>No resources match the selected filters.</p>
+            <button type="button" class="text-btn" (click)="store.clearFilters()">
+              Reset Filters
+            </button>
+          </div>
+        }
+      </div>
+    </section>
+  </div>
+</aside>

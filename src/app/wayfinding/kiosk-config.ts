@@ -44,8 +44,31 @@ export interface KioskDeviceConfig {
   aliases: string[];
 }
 
+export interface LocalAuthConfig {
+  /** Show the Username & Password login option in the Sign-In modal. */
+  enabled: boolean;
+  /**
+   * Backend API endpoint for username/password login (POST `{ username, password }`).
+   * Expected JSON response: `{ accessToken: string, user: { id?, name, email?, username? } }`.
+   * Leave blank until your backend API is deployed.
+   */
+  loginUrl?: string;
+  /**
+   * Optional Backend API endpoint to silently revalidate/refresh a local session
+   * (GET/POST with `Authorization: Bearer <token>`). Returns 200 if valid or 401 if revoked.
+   */
+  validateUrl?: string;
+  /** Optional Backend API endpoint called on Sign Out to revoke the server session. */
+  logoutUrl?: string;
+  /**
+   * Enables the built-in hardcoded demo credential (`demo` / `demo123`) for offline/demo testing.
+   * Set to `false` in production once your backend API is connected.
+   */
+  demoLoginEnabled?: boolean;
+}
+
 export interface AzureAuthConfig {
-  /** Set to false to bypass Azure AD login (e.g. offline development). */
+  /** Set to false to bypass login entirely (e.g. offline development). */
   enabled: boolean;
   /** Azure AD (Microsoft Entra ID) Tenant ID (GUID or domain). */
   tenantId: string;
@@ -64,6 +87,8 @@ export interface AzureAuthConfig {
   postLogoutRedirectUri?: string;
   /** Interval in seconds between silent token revalidation checks (default: 300s). */
   revalidateIntervalSeconds?: number;
+  /** Optional Username & Password login backed by your local user database API (plus demo login). */
+  local?: LocalAuthConfig;
 }
 
 export interface KioskRuntimeConfig {
@@ -72,6 +97,14 @@ export interface KioskRuntimeConfig {
   floors: FloorConfig[];
   kioskDevices: KioskDeviceConfig[];
 }
+
+export const DEFAULT_LOCAL_AUTH_CONFIG: LocalAuthConfig = {
+  enabled: true,
+  loginUrl: '',
+  validateUrl: '',
+  logoutUrl: '',
+  demoLoginEnabled: true,
+};
 
 export const DEFAULT_AZURE_AUTH_CONFIG: AzureAuthConfig = {
   enabled: true,
@@ -82,6 +115,7 @@ export const DEFAULT_AZURE_AUTH_CONFIG: AzureAuthConfig = {
   redirectUri: '',
   postLogoutRedirectUri: '',
   revalidateIntervalSeconds: 300,
+  local: { ...DEFAULT_LOCAL_AUTH_CONFIG },
 };
 
 /** Built-in fallback floors used if `data/kiosk-config.json` cannot be fetched. */
@@ -172,6 +206,10 @@ export async function loadKioskConfig(
           ? parsed.auth.scopes
           : [...DEFAULT_AZURE_AUTH_CONFIG.scopes],
       apiScopes: Array.isArray(parsed.auth?.apiScopes) ? parsed.auth.apiScopes : [],
+      local: {
+        ...DEFAULT_LOCAL_AUTH_CONFIG,
+        ...(parsed.auth?.local ?? {}),
+      },
     };
 
     return { defaultKioskDeviceId, auth, floors, kioskDevices };

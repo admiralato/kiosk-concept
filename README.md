@@ -1,6 +1,8 @@
-# Level 12 Interactive 3D Wayfinding Kiosk
+# SpaceBoard PC — Interactive 3D Workspace Booking & Multi-Floor Wayfinding Kiosk
 
-An interactive 3D floor plan and wayfinding kiosk built with **Angular 22** and **Three.js (r187)**.
+An interactive 3D workspace booking and multi-floor wayfinding kiosk built with **Angular 22** (standalone `OnPush` components & Signals) and **Three.js (r187)**, featuring Azure AD OAuth 2.0 + OpenID Connect, Microsoft Graph Outlook room booking, configurable local database / demo login, and zero-rebuild floor plan deployment.
+
+---
 
 ## Quick Start
 
@@ -8,29 +10,71 @@ An interactive 3D floor plan and wayfinding kiosk built with **Angular 22** and 
 # Start the local development server at http://localhost:4200
 npm start
 
-# Build for production (outputs to dist/kiosk3d)
+# Build for production (relative base URL `./`, outputs to dist/kiosk3d/browser/)
 npm run build
 ```
 
-## Updating the 3D Floor Plan GLB
+Try kiosk starting-position URLs locally:
+- `http://localhost:4200/?kioskId=l12-1` (Level 12 Lobby)
+- `http://localhost:4200/?kioskId=l13-1` (Level 13 North)
+- `http://localhost:4200/?kioskId=l13-2` (Level 13 South)
 
-Whenever `assets/test-floorplan.glb` is updated, re-run the optimizer so `public/models/floorplan.glb` is refreshed with Meshopt compression while preserving all scene node names:
+---
+
+## Architecture & Separation of Concerns
+
+The codebase is organized by domain and UI responsibility:
+
+```text
+src/app/
+├── app.ts / app.html / app.scss         # Thin root shell: bootstrap, Three.js lifecycle, toast & idle timer
+├── kiosk.store.ts                       # Signals-based state store (floors, resources, filters, bookings, routes)
+├── components/                          # Standalone OnPush UI components
+│   ├── auth-gate/                       # Sign-in modal (Local DB / Demo login + Microsoft Entra ID redirect)
+│   ├── top-bar/                         # Brand pill, Kiosk/Floor/Date/Time quick filters, User pill, Clock
+│   ├── sidebar/                         # Collapsible Search & Booking filters, Wayfinding planner & Directory
+│   ├── resource-inspector/              # Right detail drawer, 07:00–19:00 timeline, upcoming & full-day schedule
+│   ├── booking-modal/                   # Create/Edit reservation modal with optional Microsoft Graph Outlook sync
+│   └── map-controls/                    # Bottom-right Status Legend, Floor Switcher, 3D/2D, Cutaway & Reset
+├── auth/                                # Authentication & calendar integrations
+│   ├── azure-auth.service.ts            # Unified Auth: MSAL PKCE redirect + silent revalidation + Local/Demo auth
+│   └── outlook-calendar.service.ts      # Microsoft Graph Calendar API (create, update, cancel room events)
+├── three/                               # Pure Three.js 3D rendering layer (no Angular UI coupling)
+│   ├── floorplan-engine.ts              # Multi-floor GLTF+Meshopt loader, picking, badges, 2D/3D camera, cutaway
+│   ├── floorplan-cache.ts               # CacheStorage with automatic HTTP HEAD (ETag/Last-Modified) revalidation
+│   ├── route-visual.ts                  # Animated GLSL chevron route ribbon, walker puck & destination pin
+│   └── three-nav-input.ts               # Pointer/touch pan, orbit, and pinch-zoom input helpers
+├── wayfinding/                          # Pure TypeScript geometry & pathfinding domain (runs in browser & Node CLI)
+│   ├── kiosk-config.ts                  # Runtime loader for `public/data/kiosk-config.json` (floors, kiosks, auth)
+│   ├── resource-config.ts               # Regex rules (`RESOURCE_RULES`) mapping GLB node names to resources
+│   ├── models.ts                        # Shared TypeScript interfaces (`KioskResource`, `Reservation`, `Route`)
+│   ├── nav-grid.ts                      # 2D occupancy grid, doorway slicing, chamfer distance transform, A* + LOS
+│   └── wayfinder.ts                     # Single- & multi-floor lift-transfer routing + landmark turn instructions
+└── shared/
+    └── formatters.ts                    # Pure formatting & color helpers (time, date, distance, duration, icons)
+```
+
+### Runtime Configuration (Zero-Rebuild)
+- **[public/data/kiosk-config.json](public/data/kiosk-config.json)** — Floors (`floors`), physical kiosk terminals (`kioskDevices`), Azure AD OAuth 2.0 settings (`auth`), and local user database API / demo login settings (`auth.local`).
+- **[public/data/spaceboard-data.json](public/data/spaceboard-data.json)** — Resource catalog metadata (including optional `exchangeId` for Outlook room mailboxes) and seed reservations.
+- **[public/models/](public/models/)** — Optimized Meshopt `.glb` floor plans (`floorplan.glb`, `l13-floorplan.glb`, etc.).
+
+---
+
+## Updating or Adding 3D Floor Plans
 
 ```bash
+# Rebuild Level 12 + Level 13 GLBs
 npm run optimize-model
+
+# Rebuild Level 13 only (assembles divided GLBs from assets/l13/)
+npm run optimize-l13
+
+# Assemble a brand-new divided floor (e.g. Level 14)
+NODE_OPTIONS='--max-old-space-size=8192' npx tsx scripts/assemble-floorplan.ts assets/l14 public/models/l14-floorplan.glb
+
+# Verify navigation grid reachability without opening a browser
+npx tsx scripts/nav-debug.ts /tmp/nav-l13.png public/models/l13-floorplan.glb WAYFINDING_KIOSK_L13_1
 ```
 
-To verify the navigation grid and check that all resources are reachable from `WAYFINDING_KIOSK_L12_1` without opening a browser:
-
-```bash
-npx tsx scripts/nav-debug.ts /tmp/nav.ppm
-```
-
-## Architecture & Maintainer Guide
-
-- **[src/app/wayfinding/resource-config.ts](src/app/wayfinding/resource-config.ts)** — Regex patterns (`RESOURCE_RULES`) defining which GLB nodes become interactive resources (`MeetingRoom_12_1`..`8`, `Desk_12_001`..`003`, `WAYFINDING_LIFT_12_1`..`2`, `WAYFINDING_KIOSK_L12_1`). All other `furniture_*` nodes are treated strictly as non-clickable decorations and pathfinding obstacles.
-- **[src/app/wayfinding/nav-grid.ts](src/app/wayfinding/nav-grid.ts)** — 2D navigation mesh generator: rasterises floor polygons, slices walls horizontally at knee/chest height (`0.35 m` and `1.1 m`) so doorways stay passable, stamps decorative furniture footprints, computes a chamfer distance transform for corridor centering, and runs $A^*$ + line-of-sight string-pulling.
-- **[src/app/wayfinding/wayfinder.ts](src/app/wayfinding/wayfinder.ts)** — High-level route planner that snaps resources to walkable anchors, rounds corners, and generates landmark-aware turn-by-turn directions.
-- **[src/app/three/floorplan-engine.ts](src/app/three/floorplan-engine.ts)** — Three.js scene controller: GLTF + Meshopt loading, lighting/shadows, resource plates/outlines, CSS2D pill badges, raycast picking, 2D/3D camera transitions, and dollhouse cutaway walls.
-- **[src/app/three/route-visual.ts](src/app/three/route-visual.ts)** — Custom GLSL animated chevron route ribbon, walker puck, and pulsing destination pin.
-- **[src/app/kiosk.store.ts](src/app/kiosk.store.ts)** — Angular Signals store managing search, category filters, selected resources, and origin/destination routing.
+For full technical specifications, wayfinding algorithm details, Azure AD setup, and production deployment instructions, see **[kiosk_specifications_and_guide.md](kiosk_specifications_and_guide.md)**.

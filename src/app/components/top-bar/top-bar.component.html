@@ -1,0 +1,121 @@
+<header class="top-bar">
+  <div class="brand-pill" (click)="store.reset()">
+    <div class="brand-badge">SB</div>
+    <div class="brand-meta">
+      <span class="brand-title">SpaceBoard PC</span>
+      <span class="brand-sub">
+        <span class="pulse-dot"></span>
+        {{ store.activeDevice().label }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Quick Kiosk Device / Floor / Day / Time Filter Bar -->
+  <div class="top-filter-bar">
+    <div class="top-chip" title="Active Kiosk Starting Position (?kioskId=...)">
+      <svg viewBox="0 0 24 24" width="15" height="15">
+        <path
+          fill="currentColor"
+          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"
+        />
+      </svg>
+      <select
+        aria-label="Kiosk Device"
+        [ngModel]="store.activeDevice().deviceId"
+        (ngModelChange)="store.setKioskDevice($event)"
+      >
+        @for (dev of store.kioskDevices(); track dev.deviceId) {
+          <option [value]="dev.deviceId">{{ dev.label }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="top-chip">
+      <svg viewBox="0 0 24 24" width="15" height="15">
+        <path fill="currentColor" d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z" />
+      </svg>
+      <select
+        aria-label="Floor"
+        [ngModel]="store.floorFilter()"
+        (ngModelChange)="store.setFloor($event)"
+      >
+        @for (fl of store.floors(); track fl) {
+          <option [value]="fl">
+            {{ fl }}{{ store.cachedFloors().includes(fl) ? ' ✓' : '' }}
+          </option>
+        }
+      </select>
+    </div>
+
+    <div class="top-chip">
+      <svg viewBox="0 0 24 24" width="15" height="15">
+        <path
+          fill="currentColor"
+          d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"
+        />
+      </svg>
+      <input
+        type="date"
+        aria-label="Booking Date"
+        [ngModel]="store.filterDate()"
+        (ngModelChange)="store.filterDate.set($event)"
+      />
+    </div>
+
+    <div class="top-chip">
+      <svg viewBox="0 0 24 24" width="15" height="15">
+        <path
+          fill="currentColor"
+          d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"
+        />
+      </svg>
+      <select
+        aria-label="Start Time"
+        [ngModel]="store.startTime()"
+        (ngModelChange)="store.setStartTime($event)"
+      >
+        @for (slot of timeSlots; track slot) {
+          <option [value]="slot">{{ formatTime12h(slot) }}</option>
+        }
+      </select>
+      <span class="chip-sep">&ndash;</span>
+      <select
+        aria-label="End Time"
+        [ngModel]="store.endTime()"
+        (ngModelChange)="store.setEndTime($event)"
+      >
+        @for (slot of timeSlots; track slot) {
+          <option [value]="slot">{{ formatTime12h(slot) }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <div class="top-right">
+    @if (auth.user(); as user) {
+      <div class="user-pill" [title]="user.email || user.name">
+        <span class="user-avatar">{{ user.initials }}</span>
+        <span class="user-name">{{ user.name }}</span>
+        <button
+          type="button"
+          class="user-signout-btn"
+          (click)="signOut.emit()"
+          title="Sign out"
+          aria-label="Sign out"
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15">
+            <path
+              fill="currentColor"
+              d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+            />
+          </svg>
+        </button>
+      </div>
+    }
+
+    <div class="clock-pill">
+      <span class="clock-time">{{ currentTime() }}</span>
+      <span class="clock-date">{{ currentDate() }}</span>
+    </div>
+  </div>
+</header>

@@ -1,0 +1,72 @@
+<div class="map-controls" [class.shifted-left]="!!store.selected()">
+  <!-- Status Legend Pill -->
+  <div class="legend-pill">
+    <span class="legend-item">
+      <span class="legend-square" [style.background]="statusColors.available"></span>
+      Available ({{ store.statusSummary().available }})
+    </span>
+    <span class="legend-item">
+      <span class="legend-square" [style.background]="statusColors.reserved"></span>
+      Reserve ({{ store.statusSummary().reserved }})
+    </span>
+    <span class="legend-item">
+      <span class="legend-square" [style.background]="statusColors.occupied"></span>
+      Occupied ({{ store.statusSummary().occupied }})
+    </span>
+  </div>
+
+  <!-- Floor Switcher Pill -->
+  <div class="control-group">
+    @for (fl of store.floorConfigs(); track fl.id) {
+      <button
+        type="button"
+        class="ctrl-btn"
+        [class.is-active]="store.floorFilter() === fl.id"
+        (click)="store.setFloor(fl.id)"
+        [title]="'Switch to ' + fl.id"
+      >
+        {{ fl.shortCode }}
+      </button>
+    }
+  </div>
+
+  <div class="control-group">
+    <button
+      type="button"
+      class="ctrl-btn"
+      [class.is-active]="store.viewMode() === '3d'"
+      (click)="setViewMode('3d')"
+      title="3D Perspective View"
+    >
+      3D
+    </button>
+    <button
+      type="button"
+      class="ctrl-btn"
+      [class.is-active]="store.viewMode() === '2d'"
+      (click)="setViewMode('2d')"
+      title="2D Top-Down Plan View"
+    >
+      2D
+    </button>
+  </div>
+
+  <button
+    type="button"
+    class="ctrl-btn ctrl-btn--wide"
+    [class.is-active]="store.cutaway()"
+    (click)="toggleCutaway()"
+    title="Toggle Dollhouse Cutaway Walls"
+  >
+    <span>{{ store.cutaway() ? 'Low Walls' : 'Full Walls' }}</span>
+  </button>
+
+  <button
+    type="button"
+    class="ctrl-btn ctrl-btn--wide"
+    (click)="store.reset()"
+    title="Reset Map &amp; Return to Kiosk"
+  >
+    <span>Reset View</span>
+  </button>
+</div>

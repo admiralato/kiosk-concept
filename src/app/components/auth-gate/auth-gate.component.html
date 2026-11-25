@@ -1,0 +1,116 @@
+<div class="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-badge">SB</div>
+      <div>
+        <h1>SpaceBoard PC</h1>
+        <p class="auth-subtitle">3D Workspace Booking &amp; Wayfinding</p>
+      </div>
+    </div>
+
+    @if (auth.status() === 'initializing') {
+      <div class="auth-body">
+        <div class="spinner-ring"></div>
+        <p class="auth-message">{{ auth.statusMessage() }}</p>
+      </div>
+    } @else {
+      <div class="auth-body">
+        @if (auth.status() === 'reauth-required') {
+          <div class="auth-notice auth-notice--warn">
+            <strong>Session re-authentication required</strong>
+            <span>{{ auth.statusMessage() }}</span>
+          </div>
+        } @else {
+          <p class="auth-message">{{ auth.statusMessage() }}</p>
+        }
+
+        @if (auth.error(); as authErr) {
+          <div class="auth-notice auth-notice--error">
+            <strong>Authentication Error</strong>
+            <span>{{ authErr }}</span>
+          </div>
+        }
+
+        @if (auth.localAuthEnabled()) {
+          <form class="auth-form" (submit)="signInWithCredentials($event)">
+            <div class="auth-field">
+              <label for="auth-username">Username</label>
+              <input
+                id="auth-username"
+                name="username"
+                type="text"
+                autocomplete="username"
+                placeholder="Enter username"
+                [disabled]="auth.submittingLocalLogin()"
+                [ngModel]="loginUsername()"
+                (ngModelChange)="loginUsername.set($event)"
+              />
+            </div>
+
+            <div class="auth-field">
+              <label for="auth-password">Password</label>
+              <input
+                id="auth-password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Enter password"
+                [disabled]="auth.submittingLocalLogin()"
+                [ngModel]="loginPassword()"
+                (ngModelChange)="loginPassword.set($event)"
+              />
+            </div>
+
+            <button
+              type="submit"
+              class="local-login-btn"
+              [disabled]="auth.submittingLocalLogin()"
+            >
+              {{ auth.submittingLocalLogin() ? 'Signing in...' : 'Sign in' }}
+            </button>
+          </form>
+
+          @if (auth.demoLoginEnabled()) {
+            <div class="demo-login-box">
+              <span class="demo-login-hint">
+                Demo credentials: <code>{{ demoUsername }}</code> / <code>{{ demoPassword }}</code>
+              </span>
+              <button
+                type="button"
+                class="demo-login-btn"
+                [disabled]="auth.submittingLocalLogin()"
+                (click)="signInAsDemo()"
+              >
+                Use Demo Login
+              </button>
+            </div>
+          }
+        }
+
+        @if (auth.localAuthEnabled() && auth.azureAdEnabled()) {
+          <div class="auth-divider">
+            <span>or</span>
+          </div>
+        }
+
+        @if (auth.azureAdEnabled()) {
+          <button type="button" class="ms-login-btn" (click)="signInWithMicrosoft()">
+            <svg viewBox="0 0 21 21" width="18" height="18" aria-hidden="true">
+              <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+              <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+              <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+              <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+            </svg>
+            <span>
+              {{
+                auth.status() === 'reauth-required'
+                  ? 'Sign in again with Microsoft'
+                  : 'Sign in with Microsoft'
+              }}
+            </span>
+          </button>
+        }
+      </div>
+    }
+  </div>
+</div>
