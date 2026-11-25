@@ -563,16 +563,37 @@
   display: flex;
   gap: 5px;
   flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 .filter-tab {
-  flex: 1;
+  flex: 0 0 auto;
+  white-space: nowrap;
   justify-content: center;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   color: #475569;
   border-radius: 9px;
-  padding: 5px 8px;
+  padding: 5px 10px;
   font-size: 0.73rem;
   font-weight: 700;
   display: flex;

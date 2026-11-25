@@ -1,8 +1,15 @@
 <header class="top-bar">
-  <div class="brand-pill" (click)="store.reset()">
+  <div
+    class="brand-pill"
+    (click)="store.reset()"
+    [title]="'SpaceBoard PC v' + buildInfo.version + ' (' + buildInfo.commitId + ' @ ' + buildInfo.branch + ') • Built ' + buildInfo.buildTime"
+  >
     <div class="brand-badge">SB</div>
     <div class="brand-meta">
-      <span class="brand-title">SpaceBoard PC</span>
+      <div class="brand-title-row">
+        <span class="brand-title">SpaceBoard PC</span>
+        <span class="brand-version">{{ buildInfo.shortCommitId }}{{ buildInfo.dirty ? '*' : '' }}</span>
+      </div>
       <span class="brand-sub">
         <span class="pulse-dot"></span>
         {{ store.activeDevice().label }}

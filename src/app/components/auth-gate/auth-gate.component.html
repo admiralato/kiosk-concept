@@ -112,5 +112,12 @@
         }
       </div>
     }
+
+    <div
+      class="auth-version"
+      [title]="'Commit: ' + buildInfo.commitId + ' (' + buildInfo.branch + ') • Built: ' + buildInfo.buildTime"
+    >
+      v{{ buildInfo.version }} &bull; {{ buildInfo.shortCommitId }}{{ buildInfo.dirty ? '*' : '' }}
+    </div>
   </div>
 </div>

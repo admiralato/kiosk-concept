@@ -10,6 +10,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { AzureAuthService } from '../../auth/azure-auth.service';
 import { KioskStore } from '../../kiosk.store';
+import { BUILD_INFO } from '../../shared/build-info';
 import { TIME_SLOTS, formatClock, formatDate, formatTime12h } from '../../shared/formatters';
 
 /**
@@ -32,6 +33,7 @@ export class TopBarComponent implements OnInit, OnDestroy {
 
   readonly timeSlots = TIME_SLOTS;
   readonly formatTime12h = formatTime12h;
+  readonly buildInfo = BUILD_INFO;
   readonly currentTime = signal(formatClock(new Date()));
   readonly currentDate = signal(formatDate(new Date()));
 

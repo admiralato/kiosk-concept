@@ -5,6 +5,7 @@ import {
   DEMO_LOGIN_PASSWORD,
   DEMO_LOGIN_USERNAME,
 } from '../../auth/azure-auth.service';
+import { BUILD_INFO } from '../../shared/build-info';
 
 /**
  * Full-screen authentication gate supporting:
@@ -30,6 +31,7 @@ export class AuthGateComponent {
   readonly loginPassword = signal('');
   readonly demoUsername = DEMO_LOGIN_USERNAME;
   readonly demoPassword = DEMO_LOGIN_PASSWORD;
+  readonly buildInfo = BUILD_INFO;
 
   signInWithMicrosoft(): void {
     void this.auth.login();

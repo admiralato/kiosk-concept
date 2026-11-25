@@ -19,6 +19,7 @@ import { ResourceInspectorComponent } from './components/resource-inspector/reso
 import { SidebarComponent, type SidebarTab } from './components/sidebar/sidebar.component';
 import { TopBarComponent } from './components/top-bar/top-bar.component';
 import { KioskStore } from './kiosk.store';
+import { BUILD_INFO } from './shared/build-info';
 import { FloorplanEngine } from './three/floorplan-engine';
 import { getFloorConfig, loadKioskConfig } from './wayfinding/kiosk-config';
 import type { KioskResource, Reservation, RouteStep } from './wayfinding/models';
@@ -136,6 +137,11 @@ export class App implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    (window as unknown as Record<string, unknown>)['__SPACEBOARD_VERSION__'] = BUILD_INFO;
+    console.info(
+      `[SpaceBoard PC] v${BUILD_INFO.version} (${BUILD_INFO.shortCommitId}${BUILD_INFO.dirty ? '-dirty' : ''} @ ${BUILD_INFO.branch}) • built ${BUILD_INFO.buildTime}`,
+    );
+
     const host = this.viewportRef.nativeElement;
     this.engine = new FloorplanEngine(host);
     this.engine.setInsets(410, 0);
