@@ -1,0 +1,200 @@
+@if (open() && resource(); as targetRes) {
+  @let editRes = reservation();
+  @let isStartedEdit = mode() === 'edit' && editRes?.status === 'started';
+  <div class="modal-backdrop" (click)="close()">
+    <div class="booking-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <span class="modal-kicker">
+            {{ targetRes.resourceType }} &bull; {{ targetRes.floor }}
+            @if (editRes) {
+              &bull; Status: <strong>{{ editRes.status }}</strong>
+            }
+          </span>
+          <h3>
+            @if (mode() === 'create') {
+              Book {{ targetRes.name }}
+            } @else if (isStartedEdit) {
+              Update Subject — {{ targetRes.name }}
+            } @else {
+              Update Upcoming Reservation — {{ targetRes.name }}
+            }
+          </h3>
+        </div>
+        <button type="button" class="inspector-close" (click)="close()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        @if (targetRes.exchangeId) {
+          <div class="outlook-sync-badge">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10z"
+              />
+            </svg>
+            <span>
+              Books directly in <strong>Outlook / Exchange</strong> ({{ targetRes.exchangeId }})
+            </span>
+          </div>
+        }
+
+        @if (isStartedEdit) {
+          <div class="started-lock-notice">
+            This reservation has already <strong>started</strong>. Only the reservation <strong>Subject</strong> can be modified, or you may <strong>End</strong> the reservation.
+          </div>
+        }
+
+        <div class="form-group">
+          <label>Subject</label>
+          <input
+            type="text"
+            placeholder="e.g. Product Strategy Sync"
+            [ngModel]="subject()"
+            (ngModelChange)="subject.set($event)"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Organizer Name</label>
+          <input
+            type="text"
+            placeholder="e.g. Jamie Lee"
+            [disabled]="isStartedEdit"
+            [ngModel]="organizer()"
+            (ngModelChange)="organizer.set($event)"
+          />
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label>Date</label>
+            <input
+              type="date"
+              [disabled]="isStartedEdit"
+              [ngModel]="date()"
+              (ngModelChange)="date.set($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Start Time</label>
+            <select
+              [disabled]="isStartedEdit"
+              [ngModel]="startTime()"
+              (ngModelChange)="startTime.set($event)"
+            >
+              @for (slot of timeSlots; track slot) {
+                <option [value]="slot">{{ formatTime12h(slot) }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>End Time</label>
+            <select
+              [disabled]="isStartedEdit"
+              [ngModel]="endTime()"
+              (ngModelChange)="endTime.set($event)"
+            >
+              @for (slot of timeSlots; track slot) {
+                <option [value]="slot">{{ formatTime12h(slot) }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        @if (mode() === 'create') {
+          @if (targetRes.exchangeId) {
+            <div class="form-group">
+              <label>Attendees (optional emails, comma-separated)</label>
+              <input
+                type="text"
+                placeholder="e.g. alex@company.com, sam@company.com"
+                [ngModel]="attendees()"
+                (ngModelChange)="attendees.set($event)"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Agenda / Notes (optional)</label>
+              <textarea
+                rows="2"
+                placeholder="Add meeting agenda or notes..."
+                [ngModel]="notes()"
+                (ngModelChange)="notes.set($event)"
+              ></textarea>
+            </div>
+
+            <label class="checkin-checkbox">
+              <input
+                type="checkbox"
+                [ngModel]="onlineMeeting()"
+                (ngModelChange)="onlineMeeting.set($event)"
+              />
+              <span>Include <strong>Microsoft Teams</strong> meeting link</span>
+            </label>
+          }
+
+          <label class="checkin-checkbox">
+            <input
+              type="checkbox"
+              [ngModel]="startNow()"
+              (ngModelChange)="startNow.set($event)"
+            />
+            <span>Start immediately (sets status to <strong>started</strong> / Occupied)</span>
+          </label>
+        }
+
+        @if (error()) {
+          <div class="route-alert">{{ error() }}</div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        @if (mode() === 'edit' && editRes) {
+          @if (editRes.status === 'starting') {
+            <button
+              type="button"
+              class="btn-danger-outline"
+              (click)="cancelReservation.emit(editRes)"
+            >
+              Cancel Reservation
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="btn-danger-outline"
+              (click)="endReservation.emit(editRes)"
+            >
+              End Reservation
+            </button>
+          }
+        }
+
+        <button
+          type="button"
+          class="btn-secondary"
+          [disabled]="submitting()"
+          (click)="close()"
+        >
+          Close
+        </button>
+        <button
+          type="button"
+          class="btn-book-now"
+          [disabled]="submitting()"
+          (click)="submit()"
+        >
+          @if (submitting()) {
+            Syncing with Outlook...
+          } @else if (mode() === 'create') {
+            {{ targetRes.exchangeId ? 'Book in Outlook' : 'Confirm Reservation' }}
+          } @else {
+            Save Changes
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,236 @@
+@if (store.selected(); as sel) {
+  @let selStatus = store.statusOf(sel.id);
+  <aside class="detail-drawer">
+    <div class="detail-header">
+      <div>
+        <h2 class="detail-title">{{ sel.name }}</h2>
+        <span class="detail-sub">{{ sel.code }} &bull; {{ sel.id }}</span>
+      </div>
+      <button
+        type="button"
+        class="inspector-close"
+        (click)="store.select(null)"
+        aria-label="Close details"
+      >
+        &times;
+      </button>
+    </div>
+
+    <!-- Visual Preview Banner -->
+    <div class="detail-preview" [attr.data-kind]="sel.kind">
+      <div
+        class="detail-preview__accent"
+        [style.background]="sel.bookable ? statusColor(selStatus) : kindColor(sel.kind)"
+      ></div>
+      <div class="detail-preview__content">
+        <span class="preview-type-tag">{{ sel.resourceType }} &bull; {{ sel.floor }}</span>
+        <p class="preview-desc">
+          {{ sel.description || 'Interactive workspace resource on ' + sel.floor + '.' }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Metadata Specs Table -->
+    <div class="spec-list">
+      @if (sel.capacity > 0) {
+        <div class="spec-row">
+          <span class="spec-label">Capacity</span>
+          <span class="spec-value">{{ sel.capacity }} {{ sel.capacity === 1 ? 'person' : 'people' }}</span>
+        </div>
+      }
+      <div class="spec-row">
+        <span class="spec-label">Resource Type</span>
+        <span class="spec-value">{{ sel.resourceType }}</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label">Site &amp; Floor</span>
+        <span class="spec-value">{{ sel.site }} &bull; {{ sel.floor }}</span>
+      </div>
+      @if (sel.equipment.length > 0) {
+        <div class="spec-row spec-row--stacked">
+          <span class="spec-label">Features &amp; Equipment</span>
+          <span class="spec-value">{{ sel.equipment.join(', ') }}</span>
+        </div>
+      }
+      @if (sel.bookable) {
+        <div class="spec-row">
+          <span class="spec-label">Status ({{ formatTime12h(store.startTime()) }})</span>
+          <span class="spec-status" [attr.data-status]="selStatus">
+            <span class="status-dot" [style.background]="statusColor(selStatus)"></span>
+            {{ statusLabel(selStatus) }}
+          </span>
+        </div>
+      }
+    </div>
+
+    <!-- Day Schedule Bar (07:00 - 19:00) -->
+    @if (sel.bookable) {
+      <div class="day-timeline-box">
+        <div class="timeline-header">
+          <span class="timeline-title">Day Availability ({{ formatDisplayDate(store.filterDate()) }})</span>
+        </div>
+        <div class="timeline-track">
+          @for (res of store.selectedDayReservations(); track res.id) {
+            @let pos = reservationBarStyle(res.startTime, res.endTime);
+            <div
+              class="timeline-block"
+              [class.is-occupied]="res.status === 'started'"
+              [class.is-reserved]="res.status === 'starting'"
+              [style.left]="pos.left"
+              [style.width]="pos.width"
+              [title]="res.subject + ' [' + res.status + '] (' + formatTime12h(res.startTime) + ' - ' + formatTime12h(res.endTime) + ')'"
+              (click)="onEdit(res, $event)"
+            ></div>
+          }
+        </div>
+        <div class="timeline-scale">
+          <span>7 AM</span>
+          <span>10 AM</span>
+          <span>1 PM</span>
+          <span>4 PM</span>
+          <span>7 PM</span>
+        </div>
+      </div>
+
+      <!-- Current / Upcoming Booking Card -->
+      <div class="upcoming-section">
+        <h4>Current / Upcoming Booking</h4>
+        @if (store.selectedNextReservation(); as nextRes) {
+          <div class="upcoming-card">
+            <div class="upcoming-date">
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path
+                  fill="currentColor"
+                  d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"
+                />
+              </svg>
+              <span>{{ formatDisplayDate(nextRes.date) }}</span>
+              <span
+                class="mini-status-tag"
+                [attr.data-status]="nextRes.status === 'started' ? 'occupied' : 'reserved'"
+              >
+                {{ nextRes.status }}
+              </span>
+            </div>
+            <div class="upcoming-time">
+              {{ formatTime12h(nextRes.startTime) }} &ndash; {{ formatTime12h(nextRes.endTime) }}
+            </div>
+            <div class="upcoming-title">{{ nextRes.subject }}</div>
+            <div class="upcoming-org">Organizer: {{ nextRes.organizer }}</div>
+
+            <!-- Lifecycle Actions based on status ('starting' vs 'started') -->
+            <div class="reservation-action-bar">
+              @if (nextRes.status === 'starting') {
+                <button
+                  type="button"
+                  class="res-btn res-btn--edit"
+                  (click)="onEdit(nextRes, $event)"
+                  title="Update date, time, organizer, or subject"
+                >
+                  Update
+                </button>
+                <button
+                  type="button"
+                  class="res-btn res-btn--start"
+                  (click)="store.startReservation(nextRes.id)"
+                  title="Check in and start meeting now"
+                >
+                  Check In
+                </button>
+                <button
+                  type="button"
+                  class="res-btn res-btn--danger"
+                  (click)="onCancel(nextRes, $event)"
+                  title="Cancel upcoming reservation"
+                >
+                  Cancel
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="res-btn res-btn--edit"
+                  (click)="onEdit(nextRes, $event)"
+                  title="Update reservation Subject"
+                >
+                  Edit Subject
+                </button>
+                <button
+                  type="button"
+                  class="res-btn res-btn--danger"
+                  (click)="onEnd(nextRes, $event)"
+                  title="End current reservation early"
+                >
+                  End Now
+                </button>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="upcoming-empty">No upcoming bookings for the rest of this day.</div>
+        }
+
+        <button
+          type="button"
+          class="btn-outline-full"
+          (click)="showFullSchedule.set(!showFullSchedule())"
+        >
+          {{ showFullSchedule() ? 'Hide Day Schedule' : 'View Full Day Schedule (' + store.selectedDayReservations().length + ')' }}
+        </button>
+
+        @if (showFullSchedule()) {
+          <div class="full-schedule-list">
+            @for (r of store.selectedDayReservations(); track r.id) {
+              <div class="schedule-row">
+                <span
+                  class="status-dot"
+                  [style.background]="r.status === 'started' ? statusColors.occupied : statusColors.reserved"
+                ></span>
+                <div class="schedule-row__info">
+                  <div class="schedule-row__top">
+                    <strong>{{ formatTime12h(r.startTime) }} &ndash; {{ formatTime12h(r.endTime) }}</strong>
+                    <span
+                      class="mini-status-tag"
+                      [attr.data-status]="r.status === 'started' ? 'occupied' : 'reserved'"
+                    >
+                      {{ r.status }}
+                    </span>
+                  </div>
+                  <span>{{ r.subject }} ({{ r.organizer }})</span>
+                  <div class="schedule-row__actions">
+                    @if (r.status === 'starting') {
+                      <button type="button" class="link-btn" (click)="onEdit(r, $event)">Update</button>
+                      <button type="button" class="link-btn" (click)="store.startReservation(r.id)">Start</button>
+                      <button type="button" class="link-btn link-btn--danger" (click)="onCancel(r, $event)">Cancel</button>
+                    } @else {
+                      <button type="button" class="link-btn" (click)="onEdit(r, $event)">Edit Subject</button>
+                      <button type="button" class="link-btn link-btn--danger" (click)="onEnd(r, $event)">End</button>
+                    }
+                  </div>
+                </div>
+              </div>
+            } @empty {
+              <div class="schedule-empty">Free all day on {{ formatDisplayDate(store.filterDate()) }}.</div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Action Buttons: Book Resource + Wayfinding -->
+    <div class="detail-actions">
+      @if (sel.bookable) {
+        <button type="button" class="btn-book-now" (click)="bookResource.emit(sel)">
+          New Booking for {{ sel.name }}
+        </button>
+      }
+      <div class="detail-nav-btns">
+        <button type="button" class="btn-primary" (click)="navigateHere.emit(sel.id)">
+          Navigate Here
+        </button>
+        <button type="button" class="btn-secondary" (click)="navigateFromHere.emit(sel.id)">
+          Set as Start
+        </button>
+      </div>
+    </div>
+  </aside>
+}

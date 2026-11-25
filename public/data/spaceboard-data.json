@@ -1,0 +1,594 @@
+{
+  "sites": [
+    "Marina Bay Tower",
+    "One Raffles Place",
+    "Tech Park Campus"
+  ],
+  "floors": [
+    "Level 12",
+    "Level 13"
+  ],
+  "resourceTypes": [
+    "Meeting Room",
+    "Private Room",
+    "Focus Room",
+    "Desk",
+    "Male Toilet",
+    "Female Toilet",
+    "PWD Toilet",
+    "Nursing Room"
+  ],
+  "equipmentOptions": [
+    "TV",
+    "Whiteboard",
+    "Video Conferencing",
+    "Dual Monitor",
+    "Standing Desk",
+    "Speakerphone",
+    "HDMI Wireless Cast",
+    "Soundproofing"
+  ],
+  "resources": [
+    {
+      "id": "MeetingRoom_12_1",
+      "displayName": "Meeting Room 12-1",
+      "code": "MR 12-1",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Meeting Room",
+      "capacity": 8,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing", "HDMI Wireless Cast"],
+      "description": "Medium boardroom with 75-inch 4K display and Poly Studio bar."
+    },
+    {
+      "id": "MeetingRoom_12_2",
+      "displayName": "Meeting Room 12-2",
+      "code": "MR 12-2",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Focus Room",
+      "capacity": 4,
+      "equipment": ["Whiteboard", "Soundproofing", "Speakerphone"],
+      "description": "Quiet acoustic room designed for deep work and small huddles."
+    },
+    {
+      "id": "MeetingRoom_12_3",
+      "displayName": "Meeting Room 12-3",
+      "code": "MR 12-3",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Private Room",
+      "capacity": 4,
+      "equipment": ["TV", "Video Conferencing", "Soundproofing"],
+      "description": "Executive private suite with frosted privacy glass."
+    },
+    {
+      "id": "MeetingRoom_12_4",
+      "displayName": "Meeting Room 12-4",
+      "code": "MR 12-4",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Meeting Room",
+      "capacity": 6,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing"],
+      "description": "Collaborative team room with digital whiteboard."
+    },
+    {
+      "id": "MeetingRoom_12_5",
+      "displayName": "Meeting Room 12-5",
+      "code": "MR 12-5",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Meeting Room",
+      "capacity": 12,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing", "Speakerphone", "HDMI Wireless Cast"],
+      "description": "Large conference suite for all-hands and client presentations."
+    },
+    {
+      "id": "MeetingRoom_12_6",
+      "displayName": "Meeting Room 12-6",
+      "code": "MR 12-6",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Meeting Room",
+      "capacity": 6,
+      "equipment": ["TV", "Whiteboard", "HDMI Wireless Cast"],
+      "description": "Project sprint room with floor-to-ceiling glass whiteboard."
+    },
+    {
+      "id": "MeetingRoom_12_7",
+      "displayName": "Meeting Room 12-7",
+      "code": "MR 12-7",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Private Room",
+      "capacity": 6,
+      "equipment": ["TV", "Video Conferencing", "Speakerphone", "Soundproofing"],
+      "description": "Private strategy room with dual zoom cameras."
+    },
+    {
+      "id": "MeetingRoom_12_8",
+      "displayName": "Meeting Room 12-8",
+      "code": "MR 12-8",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Focus Room",
+      "capacity": 6,
+      "equipment": ["Whiteboard", "TV", "Soundproofing"],
+      "description": "Corner focus & design-thinking room."
+    },
+    {
+      "id": "Desk_12_001",
+      "displayName": "Desk 12-001",
+      "code": "D 12-001",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Desk",
+      "capacity": 1,
+      "equipment": ["Dual Monitor", "Standing Desk"],
+      "description": "Ergonomic sit-stand workstation with USB-C dock."
+    },
+    {
+      "id": "Desk_12_002",
+      "displayName": "Desk 12-002",
+      "code": "D 12-002",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Desk",
+      "capacity": 1,
+      "equipment": ["Dual Monitor", "Standing Desk"],
+      "description": "Ergonomic sit-stand workstation with dual 27-inch 4K monitors."
+    },
+    {
+      "id": "Desk_12_003",
+      "displayName": "Desk 12-003",
+      "code": "D 12-003",
+      "site": "Marina Bay Tower",
+      "floor": "Level 12",
+      "resourceType": "Desk",
+      "capacity": 1,
+      "equipment": ["Standing Desk"],
+      "description": "Quiet-zone hot desk with motorized height adjustment."
+    },
+    {
+      "id": "Desk_13_001",
+      "displayName": "Desk 13-001",
+      "code": "D 13-001",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Desk",
+      "capacity": 1,
+      "equipment": ["Dual Monitor", "Standing Desk", "Soundproofing"],
+      "description": "Level 13 acoustic focus booth desk with dual 4K display dock."
+    },
+    {
+      "id": "Desk_13_002",
+      "displayName": "Desk 13-002",
+      "code": "D 13-002",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Desk",
+      "capacity": 1,
+      "equipment": ["Dual Monitor", "Standing Desk", "Soundproofing"],
+      "description": "Level 13 center acoustic focus booth desk with privacy partition."
+    },
+    {
+      "id": "Desk_13_003",
+      "displayName": "Desk 13-003",
+      "code": "D 13-003",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Desk",
+      "capacity": 1,
+      "equipment": ["Standing Desk", "Soundproofing"],
+      "description": "Level 13 quiet acoustic booth workstation."
+    },
+    {
+      "id": "MeetingRoom_13_43",
+      "displayName": "Meeting Room 13-43",
+      "code": "MR 13-43",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 6,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing"],
+      "description": "Level 13 north-east meeting room."
+    },
+    {
+      "id": "MeetingRoom_13_44",
+      "displayName": "Meeting Room 13-44",
+      "code": "MR 13-44",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 6,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing"],
+      "description": "Level 13 west core meeting room."
+    },
+    {
+      "id": "MeetingRoom_13_45",
+      "displayName": "Meeting Room 13-45",
+      "code": "MR 13-45",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 8,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing", "HDMI Wireless Cast"],
+      "description": "Level 13 west conference room."
+    },
+    {
+      "id": "MeetingRoom_13_46",
+      "displayName": "Meeting Room 13-46",
+      "code": "MR 13-46",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 8,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing", "HDMI Wireless Cast"],
+      "description": "Level 13 north-west conference room."
+    },
+    {
+      "id": "MeetingRoom_13_47",
+      "displayName": "Meeting Room 13-47",
+      "code": "MR 13-47",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 12,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing", "Speakerphone", "HDMI Wireless Cast"],
+      "description": "Large 12-person executive boardroom on Level 13 east."
+    },
+    {
+      "id": "MeetingRoom_13_48",
+      "displayName": "Meeting Room 13-48",
+      "code": "MR 13-48",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 4,
+      "equipment": ["TV", "Video Conferencing"],
+      "description": "East core 4-person meeting room."
+    },
+    {
+      "id": "MeetingRoom_13_49",
+      "displayName": "Meeting Room 13-49",
+      "code": "MR 13-49",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 4,
+      "equipment": ["TV", "Whiteboard"],
+      "description": "South-east core 4-person huddle room."
+    },
+    {
+      "id": "MeetingRoom_13_50",
+      "displayName": "Meeting Room 13-50",
+      "code": "MR 13-50",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 8,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing", "Speakerphone"],
+      "description": "South-west corner 8-person boardroom."
+    },
+    {
+      "id": "MeetingRoom_13_51",
+      "displayName": "Meeting Room 13-51",
+      "code": "MR 13-51",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 6,
+      "equipment": ["TV", "Video Conferencing"],
+      "description": "East wing meeting room."
+    },
+    {
+      "id": "MeetingRoom_13_52",
+      "displayName": "Meeting Room 13-52",
+      "code": "MR 13-52",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Meeting Room",
+      "capacity": 8,
+      "equipment": ["TV", "Whiteboard", "Video Conferencing", "HDMI Wireless Cast"],
+      "description": "East wing collaboration meeting room."
+    },
+    {
+      "id": "FocusRoom_13_24",
+      "displayName": "Focus Room 13-24",
+      "code": "FR 13-24",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Focus Room",
+      "capacity": 2,
+      "equipment": ["Whiteboard", "Soundproofing"],
+      "description": "West core quiet focus room."
+    },
+    {
+      "id": "FocusRoom_13_25",
+      "displayName": "Focus Room 13-25",
+      "code": "FR 13-25",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Focus Room",
+      "capacity": 2,
+      "equipment": ["Whiteboard", "Soundproofing"],
+      "description": "East wing quiet focus pod."
+    },
+    {
+      "id": "FocusRoom_13_26",
+      "displayName": "Focus Room 13-26",
+      "code": "FR 13-26",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Focus Room",
+      "capacity": 2,
+      "equipment": ["Soundproofing", "Speakerphone"],
+      "description": "Central-east quiet focus booth."
+    },
+    {
+      "id": "FocusRoom_13_27",
+      "displayName": "Focus Room 13-27",
+      "code": "FR 13-27",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Focus Room",
+      "capacity": 2,
+      "equipment": ["Whiteboard", "Soundproofing"],
+      "description": "South lobby west focus pod."
+    },
+    {
+      "id": "FocusRoom_13_28",
+      "displayName": "Focus Room 13-28",
+      "code": "FR 13-28",
+      "site": "Marina Bay Tower",
+      "floor": "Level 13",
+      "resourceType": "Focus Room",
+      "capacity": 2,
+      "equipment": ["Whiteboard", "Soundproofing"],
+      "description": "South lobby east focus pod."
+    }
+  ],
+  "reservations": [
+    {
+      "id": "RES-1001",
+      "resourceId": "MeetingRoom_12_5",
+      "subject": "Q4 Architecture & Platform Sync",
+      "organizer": "Marcus Vance",
+      "date": "TODAY",
+      "startTime": "06:30",
+      "endTime": "09:30",
+      "status": "started"
+    },
+    {
+      "id": "RES-1002",
+      "resourceId": "MeetingRoom_12_5",
+      "subject": "Global Engineering Townhall",
+      "organizer": "Elena Rostova",
+      "date": "TODAY",
+      "startTime": "11:00",
+      "endTime": "12:30",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1003",
+      "resourceId": "MeetingRoom_12_5",
+      "subject": "Design System Governance",
+      "organizer": "Jamie Lee",
+      "date": "TODAY",
+      "startTime": "14:00",
+      "endTime": "16:00",
+      "status": "started"
+    },
+    {
+      "id": "RES-1004",
+      "resourceId": "MeetingRoom_12_4",
+      "subject": "Product Strategy Review",
+      "organizer": "Jamie Lee",
+      "date": "TODAY",
+      "startTime": "07:00",
+      "endTime": "10:30",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1005",
+      "resourceId": "MeetingRoom_12_4",
+      "subject": "Mobile UX Sprint Planning",
+      "organizer": "Sophia Chen",
+      "date": "TODAY",
+      "startTime": "13:30",
+      "endTime": "15:30",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1006",
+      "resourceId": "MeetingRoom_12_7",
+      "subject": "APAC Leadership Standup",
+      "organizer": "David Tan",
+      "date": "TODAY",
+      "startTime": "06:30",
+      "endTime": "09:00",
+      "status": "started"
+    },
+    {
+      "id": "RES-1007",
+      "resourceId": "MeetingRoom_12_7",
+      "subject": "Security Audit Review",
+      "organizer": "Priya Nair",
+      "date": "TODAY",
+      "startTime": "15:00",
+      "endTime": "17:00",
+      "status": "started"
+    },
+    {
+      "id": "RES-1008",
+      "resourceId": "MeetingRoom_12_3",
+      "subject": "Partner Onboarding Workshop",
+      "organizer": "Lucas Meyer",
+      "date": "TODAY",
+      "startTime": "07:00",
+      "endTime": "11:30",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1009",
+      "resourceId": "MeetingRoom_12_8",
+      "subject": "AI Copilot Brainstorm",
+      "organizer": "Hannah Abbott",
+      "date": "TODAY",
+      "startTime": "08:30",
+      "endTime": "11:00",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1010",
+      "resourceId": "MeetingRoom_12_1",
+      "subject": "Client Demo Prep",
+      "organizer": "Alex Rivera",
+      "date": "TODAY",
+      "startTime": "11:00",
+      "endTime": "12:30",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1011",
+      "resourceId": "MeetingRoom_12_1",
+      "subject": "Tomorrow Strategy Kickoff",
+      "organizer": "Jamie Lee",
+      "date": "TOMORROW",
+      "startTime": "10:00",
+      "endTime": "11:30",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1012",
+      "resourceId": "MeetingRoom_12_2",
+      "subject": "1:1 Performance Coaching",
+      "organizer": "Rachel Green",
+      "date": "TODAY",
+      "startTime": "14:00",
+      "endTime": "15:00",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1013",
+      "resourceId": "MeetingRoom_12_6",
+      "subject": "Frontend Guild Sync",
+      "organizer": "Kevin Park",
+      "date": "TODAY",
+      "startTime": "16:00",
+      "endTime": "17:30",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1014",
+      "resourceId": "Desk_12_002",
+      "subject": "Full-Day Hotdesk Booking",
+      "organizer": "Daniel Lim",
+      "date": "TODAY",
+      "startTime": "07:00",
+      "endTime": "18:00",
+      "status": "started"
+    },
+    {
+      "id": "RES-1015",
+      "resourceId": "Desk_12_003",
+      "subject": "Morning Focus Block",
+      "organizer": "Chloe Wong",
+      "date": "TODAY",
+      "startTime": "07:00",
+      "endTime": "12:30",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1301",
+      "resourceId": "Desk_13_002",
+      "subject": "Deep Work & Data Modelling",
+      "organizer": "Liam O'Connor",
+      "date": "TODAY",
+      "startTime": "09:00",
+      "endTime": "14:00",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1302",
+      "resourceId": "Desk_13_003",
+      "subject": "Full-Day Engineering Sprint",
+      "organizer": "Maya Lin",
+      "date": "TODAY",
+      "startTime": "08:00",
+      "endTime": "19:00",
+      "status": "started"
+    },
+    {
+      "id": "RES-1303",
+      "resourceId": "MeetingRoom_13_52",
+      "subject": "Level 13 Product Architecture Review",
+      "organizer": "Elena Rostova",
+      "date": "TODAY",
+      "startTime": "07:00",
+      "endTime": "11:30",
+      "status": "started"
+    },
+    {
+      "id": "RES-1304",
+      "resourceId": "MeetingRoom_13_45",
+      "subject": "Cross-Platform Roadmap Sync",
+      "organizer": "Marcus Vance",
+      "date": "TODAY",
+      "startTime": "08:00",
+      "endTime": "12:00",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1305",
+      "resourceId": "MeetingRoom_13_47",
+      "subject": "Executive Quarterly Briefing",
+      "organizer": "David Tan",
+      "date": "TODAY",
+      "startTime": "07:30",
+      "endTime": "13:00",
+      "status": "started"
+    },
+    {
+      "id": "RES-1306",
+      "resourceId": "PrivateRoom_13_42",
+      "subject": "1:1 Hiring Debrief",
+      "organizer": "Sophia Chen",
+      "date": "TODAY",
+      "startTime": "08:00",
+      "endTime": "11:00",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1307",
+      "resourceId": "PrivateRoom_13_7",
+      "subject": "Legal & Compliance Review",
+      "organizer": "Priya Nair",
+      "date": "TODAY",
+      "startTime": "07:00",
+      "endTime": "12:00",
+      "status": "started"
+    },
+    {
+      "id": "RES-1308",
+      "resourceId": "FocusRoom_13_28",
+      "subject": "Deep Focus Sprint",
+      "organizer": "Kevin Park",
+      "date": "TODAY",
+      "startTime": "08:00",
+      "endTime": "12:30",
+      "status": "starting"
+    },
+    {
+      "id": "RES-1309",
+      "resourceId": "FocusRoom_13_24",
+      "subject": "Design Research Synthesis",
+      "organizer": "Hannah Abbott",
+      "date": "TODAY",
+      "startTime": "07:00",
+      "endTime": "11:30",
+      "status": "started"
+    }
+  ]
+}

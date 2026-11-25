@@ -1,0 +1,62 @@
+{
+  "defaultKioskDeviceId": "l12-1",
+  "auth": {
+    "enabled": true,
+    "tenantId": "dc6b3307-ad9c-4e58-ac57-4aea4db74ad4",
+    "clientId": "7c2aaf28-ef11-43ff-a71f-ac38365c4f2f",
+    "scopes": ["openid", "profile", "email", "User.Read", "Calendars.ReadWrite"],
+    "apiScopes": [],
+    "redirectUri": "",
+    "postLogoutRedirectUri": "",
+    "revalidateIntervalSeconds": 300,
+    "local": {
+      "enabled": true,
+      "loginUrl": "",
+      "validateUrl": "",
+      "logoutUrl": "",
+      "demoLoginEnabled": true
+    }
+  },
+  "floors": [
+    {
+      "id": "Level 12",
+      "level": "12",
+      "shortCode": "L12",
+      "modelUrl": "models/floorplan.glb",
+      "site": "Marina Bay Tower"
+    },
+    {
+      "id": "Level 13",
+      "level": "13",
+      "shortCode": "L13",
+      "modelUrl": "models/l13-floorplan.glb",
+      "site": "Marina Bay Tower"
+    }
+  ],
+  "kioskDevices": [
+    {
+      "deviceId": "l12-1",
+      "resourceId": "WAYFINDING_KIOSK_L12_1",
+      "label": "Kiosk L12-1 (Level 12 Lobby)",
+      "floorId": "Level 12",
+      "level": "12",
+      "aliases": ["l12-1", "l12_1", "12-1", "12_1", "wayfinding_kiosk_l12_1", "kiosk_l12_1"]
+    },
+    {
+      "deviceId": "l13-1",
+      "resourceId": "WAYFINDING_KIOSK_L13_1",
+      "label": "Kiosk L13-1 (Level 13 North)",
+      "floorId": "Level 13",
+      "level": "13",
+      "aliases": ["l13-1", "l13_1", "13-1", "13_1", "wayfinding_kiosk_l13_1", "kiosk_l13_1"]
+    },
+    {
+      "deviceId": "l13-2",
+      "resourceId": "WAYFINDING_KIOSK_L13_2",
+      "label": "Kiosk L13-2 (Level 13 South)",
+      "floorId": "Level 13",
+      "level": "13",
+      "aliases": ["l13-2", "l13_2", "13-2", "13_2", "wayfinding_kiosk_l13_2", "kiosk_l13_2"]
+    }
+  ]
+}
