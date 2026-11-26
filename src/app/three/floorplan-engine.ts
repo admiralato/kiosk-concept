@@ -442,6 +442,7 @@ export class FloorplanEngine {
     const objects = new Map<string, THREE.Object3D>();
     const obstacles: Footprint[] = [];
     const lifts: THREE.Object3D[] = [];
+    const sealedDoors: THREE.Object3D[] = [];
     const hanging: THREE.Object3D[] = [];
     const box = new THREE.Box3();
 
@@ -489,7 +490,13 @@ export class FloorplanEngine {
         lifts.push(d);
       } else {
         const am = register(d, 'amenity');
-        if (am) registeredAmenityTypes.add(am.resourceType);
+        if (am) {
+          registeredAmenityTypes.add(am.resourceType);
+          // Seal toilet/nursing room doors in NavGrid so routes walk TO the door, never THROUGH it
+          if (/(?:toilet|nursing|restroom|washroom)/i.test(d.name)) {
+            sealedDoors.push(d);
+          }
+        }
       }
     }
     for (const f of floors) {
@@ -540,9 +547,23 @@ export class FloorplanEngine {
         r.anchor = anchorById.get(r.id) ?? null;
       }
     } else {
+      // Block restroom & nursing room interiors using exact triangle rasterisation (`blockedFloors`)
+      // plus sealing their doors in `walls` — prevents routes from cutting through gendered toilets
+      // while avoiding rectangular AABB bleed into adjacent foyers/rooms (e.g. L14 Quiet Room).
+      const isNoPassThrough = (name: string) => /(?:toilet|nursing|restroom|washroom)/i.test(name);
+      const walkableFloors: THREE.Object3D[] = [];
+      const blockedFloorNodes: THREE.Object3D[] = [];
+      for (const f of floors) {
+        if (isNoPassThrough(f.name)) {
+          blockedFloorNodes.push(f);
+        } else {
+          walkableFloors.push(f);
+        }
+      }
       const grid = NavGrid.build({
-        floors: [trianglesOf(floors)],
-        walls: [trianglesOf(walls), trianglesOf(lifts)],
+        floors: [trianglesOf(walkableFloors)],
+        walls: [trianglesOf(walls), trianglesOf(lifts), trianglesOf(sealedDoors)],
+        blockedFloors: [trianglesOf(blockedFloorNodes)],
         obstacles,
       });
       const firstKiosk = resources.find((r) => r.kind === 'kiosk')?.id;

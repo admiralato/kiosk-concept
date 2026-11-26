@@ -44,6 +44,8 @@ export interface NavInput {
   floors: TriangleSource[];
   walls: TriangleSource[];
   obstacles: Footprint[];
+  /** Optional exact floor polygons (e.g. toilets/nursing rooms) rasterised directly into `solid` with zero AABB bleed. */
+  blockedFloors?: TriangleSource[];
 }
 
 export interface NavGridOptions {
@@ -120,6 +122,9 @@ export class NavGrid {
     grid.rasteriseFloors(input.floors);
     grid.bridgeFloor(Math.max(1, Math.round(options.floorBridge / grid.cell)));
     grid.rasteriseWalls(input.walls);
+    if (input.blockedFloors?.length) {
+      grid.rasteriseMask(input.blockedFloors, grid.solid);
+    }
     for (const f of input.obstacles) grid.rasteriseFootprint(f);
     grid.computeClearance();
     grid.labelComponents();
@@ -127,9 +132,13 @@ export class NavGrid {
   }
 
   private rasteriseFloors(floors: TriangleSource[]): void {
-    for (const src of floors) {
+    this.rasteriseMask(floors, this.floor);
+  }
+
+  private rasteriseMask(sources: TriangleSource[], target: Uint8Array): void {
+    for (const src of sources) {
       src.forEachTriangle((ax, _ay, az, bx, _by, bz, cx, _cy, cz) => {
-        this.fillTriangle(ax, az, bx, bz, cx, cz, this.floor);
+        this.fillTriangle(ax, az, bx, bz, cx, cz, target);
       });
     }
   }

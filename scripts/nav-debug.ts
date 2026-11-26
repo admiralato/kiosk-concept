@@ -104,8 +104,10 @@ async function main() {
     targets.push({ id: r.rule.id(r.match), p: { x: (b.minX + b.maxX) / 2, z: (b.minZ + b.maxZ) / 2 } });
   }
 
+  const isNoPassThrough = (name: string) => /(?:toilet|nursing|restroom|washroom)/i.test(name);
+  const walkableFloors = floors.filter((f) => !isNoPassThrough(f.getName()));
   const grid = NavGrid.build({
-    floors: [triSource(floors)],
+    floors: [triSource(walkableFloors)],
     walls: [triSource(walls), triSource(lifts.flatMap(subtree))],
     obstacles,
   });
