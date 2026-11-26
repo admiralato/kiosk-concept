@@ -14,7 +14,11 @@
       "kind": "meeting-room",
       "bookable": true,
       "defaultCapacity": 8,
-      "defaultEquipment": ["TV", "Whiteboard", "Video Conferencing"]
+      "defaultEquipment": [
+        "TV",
+        "Whiteboard",
+        "Video Conferencing"
+      ]
     },
     {
       "key": "PrivateRoom",
@@ -24,7 +28,10 @@
       "kind": "meeting-room",
       "bookable": true,
       "defaultCapacity": 3,
-      "defaultEquipment": ["TV", "Soundproofing"]
+      "defaultEquipment": [
+        "TV",
+        "Soundproofing"
+      ]
     },
     {
       "key": "FocusRoom",
@@ -34,7 +41,10 @@
       "kind": "meeting-room",
       "bookable": true,
       "defaultCapacity": 2,
-      "defaultEquipment": ["Whiteboard", "Soundproofing"]
+      "defaultEquipment": [
+        "Whiteboard",
+        "Soundproofing"
+      ]
     },
     {
       "key": "PhoneBooth",
@@ -44,7 +54,9 @@
       "kind": "meeting-room",
       "bookable": true,
       "defaultCapacity": 1,
-      "defaultEquipment": ["Soundproofing"]
+      "defaultEquipment": [
+        "Soundproofing"
+      ]
     },
     {
       "key": "HuddleRoom",
@@ -54,7 +66,22 @@
       "kind": "meeting-room",
       "bookable": true,
       "defaultCapacity": 4,
-      "defaultEquipment": ["TV", "Whiteboard"]
+      "defaultEquipment": [
+        "TV",
+        "Whiteboard"
+      ]
+    },
+    {
+      "key": "QuietRoom",
+      "label": "Quiet Room",
+      "codePrefix": "QR",
+      "nodeGroup": "floor",
+      "kind": "meeting-room",
+      "bookable": false,
+      "defaultCapacity": 2,
+      "defaultEquipment": [
+        "Soundproofing"
+      ]
     },
     {
       "key": "Desk",
@@ -64,14 +91,23 @@
       "kind": "desk",
       "bookable": true,
       "defaultCapacity": 1,
-      "defaultEquipment": ["Dual Monitor", "Standing Desk"]
+      "defaultEquipment": [
+        "Dual Monitor",
+        "Standing Desk"
+      ]
     }
   ],
   "auth": {
     "enabled": true,
     "tenantId": "dc6b3307-ad9c-4e58-ac57-4aea4db74ad4",
     "clientId": "7c2aaf28-ef11-43ff-a71f-ac38365c4f2f",
-    "scopes": ["openid", "profile", "email", "User.Read", "Calendars.ReadWrite"],
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "User.Read",
+      "Calendars.ReadWrite"
+    ],
     "apiScopes": [],
     "redirectUri": "",
     "postLogoutRedirectUri": "",
@@ -98,6 +134,83 @@
       "shortCode": "L13",
       "modelUrl": "models/l13-floorplan.glb",
       "site": "Marina Bay Tower"
+    },
+    {
+      "id": "Level 14",
+      "level": "14",
+      "shortCode": "L14",
+      "modelUrl": "models/l14-floorplan.glb",
+      "site": "Marina Bay Tower"
+    }
+  ],
+  "liftShafts": [
+    {
+      "id": "shaft-1",
+      "label": "Lift 1",
+      "lifts": [
+        "LIFT_12_1",
+        "WAYFINDING_LIFT_12_1",
+        "Lifts_L13_1",
+        "Lift_14_1"
+      ]
+    },
+    {
+      "id": "shaft-2",
+      "label": "Lift 2",
+      "lifts": [
+        "LIFT_12_2",
+        "WAYFINDING_LIFT_12_2",
+        "Lifts_L13_2",
+        "Lift_14_2"
+      ]
+    },
+    {
+      "id": "shaft-3",
+      "label": "Lift 3",
+      "lifts": [
+        "Lifts_L13_3",
+        "Lift_14_3"
+      ]
+    },
+    {
+      "id": "shaft-4",
+      "label": "Lift 4",
+      "lifts": [
+        "Lifts_L13_4",
+        "Lift_14_4"
+      ]
+    },
+    {
+      "id": "shaft-5",
+      "label": "Lift 5",
+      "lifts": [
+        "Lifts_L13_5",
+        "Lift_14_5"
+      ]
+    },
+    {
+      "id": "shaft-6",
+      "label": "Lift 6",
+      "lifts": [
+        "Lifts_L13_6",
+        "Lift_14_6"
+      ]
+    },
+    {
+      "id": "shaft-7",
+      "label": "Lift 7",
+      "lifts": [
+        "Lifts_L13_7",
+        "Lift_14_7"
+      ]
+    },
+    {
+      "id": "shaft-8",
+      "label": "Lift 8",
+      "lifts": [
+        "Lifts_L13_8",
+        "Lift_14_8"
+      ]
     }
   ],
   "kioskDevices": [
@@ -107,7 +220,14 @@
       "label": "Kiosk L12-1 (Level 12 Lobby)",
       "floorId": "Level 12",
       "level": "12",
-      "aliases": ["l12-1", "l12_1", "12-1", "12_1", "wayfinding_kiosk_l12_1", "kiosk_l12_1"]
+      "aliases": [
+        "l12-1",
+        "l12_1",
+        "12-1",
+        "12_1",
+        "wayfinding_kiosk_l12_1",
+        "kiosk_l12_1"
+      ]
     },
     {
       "deviceId": "l13-1",
@@ -115,7 +235,14 @@
       "label": "Kiosk L13-1 (Level 13 North)",
       "floorId": "Level 13",
       "level": "13",
-      "aliases": ["l13-1", "l13_1", "13-1", "13_1", "wayfinding_kiosk_l13_1", "kiosk_l13_1"]
+      "aliases": [
+        "l13-1",
+        "l13_1",
+        "13-1",
+        "13_1",
+        "wayfinding_kiosk_l13_1",
+        "kiosk_l13_1"
+      ]
     },
     {
       "deviceId": "l13-2",
@@ -123,7 +250,36 @@
       "label": "Kiosk L13-2 (Level 13 South)",
       "floorId": "Level 13",
       "level": "13",
-      "aliases": ["l13-2", "l13_2", "13-2", "13_2", "wayfinding_kiosk_l13_2", "kiosk_l13_2"]
+      "aliases": [
+        "l13-2",
+        "l13_2",
+        "13-2",
+        "13_2",
+        "wayfinding_kiosk_l13_2",
+        "kiosk_l13_2"
+      ]
+    },
+    {
+      "deviceId": "l14-1",
+      "resourceId": "WAYFINDING_KIOSK_L14_1",
+      "label": "Kiosk L14-1 (Level 14)",
+      "floorId": "Level 14",
+      "level": "14",
+      "aliases": [
+        "l14-1",
+        "wayfinding_kiosk_l14_1"
+      ]
+    },
+    {
+      "deviceId": "l14-2",
+      "resourceId": "WAYFINDING_KIOSK_L14_2",
+      "label": "Kiosk L14-2 (Level 14)",
+      "floorId": "Level 14",
+      "level": "14",
+      "aliases": [
+        "l14-2",
+        "wayfinding_kiosk_l14_2"
+      ]
     }
   ]
 }

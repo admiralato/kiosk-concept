@@ -21,6 +21,7 @@ import {
   type FloorConfig,
   type KioskDeviceConfig,
   type KioskRuntimeConfig,
+  type LiftShaftConfig,
   type ResourceTypeConfig,
 } from './wayfinding/kiosk-config';
 import { setRuntimeResourceTypes, type ResourceKind } from './wayfinding/resource-config';
@@ -84,6 +85,7 @@ export class KioskStore {
   readonly activeDevice = signal<KioskDeviceConfig>(this.initialDevice);
   readonly kioskDevices = signal<ReadonlyArray<KioskDeviceConfig>>(DEFAULT_KIOSK_DEVICES);
   readonly floorConfigs = signal<ReadonlyArray<FloorConfig>>(DEFAULT_FLOOR_CONFIGS);
+  readonly liftShafts = signal<ReadonlyArray<LiftShaftConfig>>([]);
   readonly defaultKioskDeviceId = signal<string>(DEFAULT_KIOSK_DEVICE_ID);
 
   /** Per-floor raw 3D scene resources + wayfinders. */
@@ -332,6 +334,7 @@ export class KioskStore {
     }
 
     this.floorConfigs.set(cfg.floors);
+    this.liftShafts.set(cfg.liftShafts);
     this.kioskDevices.set(cfg.kioskDevices);
     this.defaultKioskDeviceId.set(cfg.defaultKioskDeviceId);
 
@@ -790,7 +793,7 @@ export class KioskStore {
       if (switchToOriginFloor) {
         this.floorFilter.set(fromRes.floor);
       }
-      r = wfFrom.routeMultiFloor(fromId, toId, wfTo, this.floorFilter());
+      r = wfFrom.routeMultiFloor(fromId, toId, wfTo, this.floorFilter(), this.liftShafts());
     }
 
     if (!r) {

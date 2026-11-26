@@ -59,6 +59,15 @@ export interface FloorConfig {
   site: string;
 }
 
+export interface LiftShaftConfig {
+  /** Stable identifier for this vertical lift shaft (e.g. 'shaft-1'). */
+  id: string;
+  /** Optional display name used in turn-by-turn transfer instructions (e.g. 'West Lift 1'). */
+  label?: string;
+  /** Lift resource IDs across floors that belong to this same physical shaft (case-insensitive). */
+  lifts: string[];
+}
+
 export interface KioskDeviceConfig {
   /** Short device identifier used in `?kioskId=<deviceId>` (case-insensitive). */
   deviceId: string;
@@ -127,6 +136,7 @@ export interface KioskRuntimeConfig {
   resourceTypes: ResourceTypeConfig[];
   auth: AzureAuthConfig;
   floors: FloorConfig[];
+  liftShafts: LiftShaftConfig[];
   kioskDevices: KioskDeviceConfig[];
 }
 
@@ -321,8 +331,11 @@ export async function loadKioskConfig(
       Array.isArray(parsed.resourceTypes) && parsed.resourceTypes.length > 0
         ? parsed.resourceTypes
         : [...DEFAULT_RESOURCE_TYPES];
+    const liftShafts: LiftShaftConfig[] = Array.isArray(parsed.liftShafts)
+      ? parsed.liftShafts.filter((s) => s && Array.isArray(s.lifts) && s.lifts.length > 0)
+      : [];
 
-    return { branding, defaultKioskDeviceId, resourceTypes, auth, floors, kioskDevices };
+    return { branding, defaultKioskDeviceId, resourceTypes, auth, floors, liftShafts, kioskDevices };
   } catch (err) {
     console.warn('Could not load data/kiosk-config.json; using built-in defaults:', err);
     return {
@@ -331,6 +344,7 @@ export async function loadKioskConfig(
       resourceTypes: [...DEFAULT_RESOURCE_TYPES],
       auth: { ...DEFAULT_AZURE_AUTH_CONFIG },
       floors: [...DEFAULT_FLOOR_CONFIGS],
+      liftShafts: [],
       kioskDevices: [...DEFAULT_KIOSK_DEVICES],
     };
   }

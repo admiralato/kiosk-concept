@@ -501,6 +501,15 @@ export class FloorplanEngine {
         }
       }
     }
+    // Collect closed-room footprints so indoor furniture groups (conference tables & chairs
+    // inside a Meeting/Private/Focus/Quiet room) don't block the room's own doorway/interior.
+    const roomBounds = resources
+      .filter((r) => r.kind === 'meeting-room')
+      .map((r) => r.bounds);
+
+    const isInsideRoom = (cx: number, cz: number): boolean =>
+      roomBounds.some((b) => cx >= b.minX && cx <= b.maxX && cz >= b.minZ && cz <= b.maxZ);
+
     for (const f of furniture) {
       const r = matchResource(f.name);
       if (r?.rule.kind === 'desk' || r?.rule.kind === 'kiosk' || r?.rule.bookable) {
@@ -514,6 +523,9 @@ export class FloorplanEngine {
         continue;
       }
       if (box.min.y > 0.3) continue;
+      const cx = (box.min.x + box.max.x) / 2;
+      const cz = (box.min.z + box.max.z) / 2;
+      if (isInsideRoom(cx, cz)) continue;
       obstacles.push({ minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z });
     }
 

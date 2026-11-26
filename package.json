@@ -10,9 +10,10 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "optimize-model": "npm run optimize-l12 && npm run optimize-l13",
+    "optimize-model": "npm run optimize-l12 && npm run optimize-l13 && npm run optimize-l14",
     "optimize-l12": "NODE_OPTIONS='--max-old-space-size=8192' tsx scripts/assemble-floorplan.ts assets/l12 public/models/floorplan.glb",
     "optimize-l13": "NODE_OPTIONS='--max-old-space-size=8192' tsx scripts/assemble-floorplan.ts assets/l13 public/models/l13-floorplan.glb",
+    "optimize-l14": "NODE_OPTIONS='--max-old-space-size=8192' tsx scripts/assemble-floorplan.ts assets/l14 public/models/l14-floorplan.glb",
     "analyze-glb": "NODE_OPTIONS='--max-old-space-size=4096' tsx scripts/analyze-glb.ts"
   },
   "private": true,

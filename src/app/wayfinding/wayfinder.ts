@@ -1,5 +1,6 @@
 import { NavGrid, type Vec2 } from './nav-grid';
 import type { KioskResource, Route, RouteSegment, RouteStep, TurnKind } from './models';
+import type { LiftShaftConfig } from './kiosk-config';
 
 /** Average indoor walking speed in m/s used for the time estimate. */
 const WALKING_SPEED = 1.2;
@@ -87,13 +88,19 @@ export class Wayfinder {
 
   /**
    * Computes a multi-floor route from `fromId` on this Wayfinder's floor to `toId`
-   * on `targetWayfinder`'s floor via the optimal paired Lift shaft (Lift 1 or Lift 2).
+   * on `targetWayfinder`'s floor via paired lift shafts.
+   *
+   * Pairing priority:
+   * 1. Explicit `liftShafts` configured in `data/kiosk-config.json` (links exact lift IDs across floors).
+   * 2. Strict trailing lift-number matching (`_1 ↔ _1`, `_2 ↔ _2`) when no explicit shaft mapping covers
+   *    these two floors — never cross-pairing mismatched lifts (e.g. Lift 6 → Lift 1).
    */
   routeMultiFloor(
     fromId: string,
     toId: string,
     targetWayfinder: Wayfinder,
     activeFloor: string,
+    liftShafts?: ReadonlyArray<LiftShaftConfig>,
   ): Route | null {
     const from = this.byId.get(fromId);
     const to = targetWayfinder.get(toId);
@@ -103,31 +110,64 @@ export class Wayfinder {
     const targetLifts = targetWayfinder.lifts();
     if (!originLifts.length || !targetLifts.length) return null;
 
-    // Pair lifts by lift number (e.g. WAYFINDING_LIFT_12_1 <-> WAYFINDING_LIFT_13_1)
+    const candidatePairs: Array<{
+      origin: KioskResource;
+      target: KioskResource;
+      shaftLabel?: string;
+    }> = [];
+
+    // 1. Try explicit liftShafts from kiosk-config.json first
+    if (liftShafts?.length) {
+      for (const shaft of liftShafts) {
+        const idSet = new Set(shaft.lifts.map((id) => id.trim().toLowerCase()));
+        const origMatches = originLifts.filter((l) => idSet.has(l.id.toLowerCase()));
+        const targMatches = targetLifts.filter((l) => idSet.has(l.id.toLowerCase()));
+        for (const l1 of origMatches) {
+          for (const l2 of targMatches) {
+            candidatePairs.push({ origin: l1, target: l2, shaftLabel: shaft.label?.trim() });
+          }
+        }
+      }
+    }
+
+    // 2. Fallback: strict trailing lift-number matching (e.g. LIFT_12_1 <-> Lifts_L13_1)
+    if (!candidatePairs.length) {
+      for (const l1 of originLifts) {
+        const liftNum = l1.id.split('_').pop()?.toLowerCase();
+        if (!liftNum) continue;
+        const paired = targetLifts.find((l2) => l2.id.split('_').pop()?.toLowerCase() === liftNum);
+        if (paired) {
+          candidatePairs.push({ origin: l1, target: paired });
+        }
+      }
+    }
+
     let bestLeg1: Route | null = null;
     let bestLeg2: Route | null = null;
     let bestLiftOrigin: KioskResource | null = null;
     let bestLiftTarget: KioskResource | null = null;
+    let bestShaftLabel: string | undefined;
     let bestTotalDist = Infinity;
 
-    for (const l1 of originLifts) {
-      const liftNum = l1.id.split('_').pop();
-      const paired =
-        targetLifts.find((l2) => l2.id.split('_').pop() === liftNum) ?? targetLifts[0];
-      const leg1 = this.route(from.id, l1.id);
-      const leg2 = targetWayfinder.route(paired.id, to.id);
+    for (const pair of candidatePairs) {
+      const leg1 = this.route(from.id, pair.origin.id);
+      const leg2 = targetWayfinder.route(pair.target.id, to.id);
       if (!leg1 || !leg2) continue;
       const total = leg1.length + leg2.length;
       if (total < bestTotalDist) {
         bestTotalDist = total;
         bestLeg1 = leg1;
         bestLeg2 = leg2;
-        bestLiftOrigin = l1;
-        bestLiftTarget = paired;
+        bestLiftOrigin = pair.origin;
+        bestLiftTarget = pair.target;
+        bestShaftLabel = pair.shaftLabel;
       }
     }
 
     if (!bestLeg1 || !bestLeg2 || !bestLiftOrigin || !bestLiftTarget) return null;
+
+    const originLiftName = bestShaftLabel || bestLiftOrigin.code;
+    const targetLiftName = bestShaftLabel || bestLiftTarget.code;
 
     // Replace the last 'arrive' step of leg 1 with a 'lift' transfer step
     const leg1Steps: RouteStep[] = bestLeg1.steps.slice(0, -1).map((s) => ({
@@ -136,7 +176,7 @@ export class Wayfinder {
     }));
     const transferStep: RouteStep = {
       turn: 'lift',
-      text: `Take ${bestLiftOrigin.code} from ${from.floor} to ${to.floor}`,
+      text: `Take ${originLiftName} from ${from.floor} to ${to.floor}`,
       distance: 0,
       at: bestLiftOrigin.center,
       floor: from.floor,
@@ -149,7 +189,7 @@ export class Wayfinder {
       floor: to.floor,
       text:
         idx === 0
-          ? `Exit ${bestLiftTarget!.code} on ${to.floor}`
+          ? `Exit ${targetLiftName} on ${to.floor}`
           : s.text,
     }));
 
