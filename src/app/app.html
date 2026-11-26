@@ -4,77 +4,64 @@
 
   <!-- Authentication Gate (Azure AD + Local DB / Demo Login) -->
   @if (!auth.isAuthenticated()) {
-    <app-auth-gate (authenticated)="ensureFloorPlansBooted()" />
+  <app-auth-gate (authenticated)="ensureFloorPlansBooted()" />
   }
 
   <!-- Floor Plan Loading Overlay -->
   @if (auth.isAuthenticated() && store.status() === 'loading') {
-    <div class="loading-overlay">
-      <div class="loading-card">
-        <div class="spinner-ring"></div>
-        <h2>Loading {{ loadingFloorName() }}</h2>
-        <p>Preparing 3D floor plan, disk cache &amp; multi-floor wayfinding...</p>
-        <div class="progress-bar">
-          <div class="progress-bar__fill" [style.width.%]="store.progress()"></div>
-        </div>
-        <span class="progress-label">{{ store.progress() }}%</span>
+  <div class="loading-overlay">
+    <div class="loading-card">
+      <div class="spinner-ring"></div>
+      <h2>Loading {{ loadingFloorName() }}</h2>
+      <p>Preparing 3D floor plan, disk cache &amp; multi-floor wayfinding...</p>
+      <div class="progress-bar">
+        <div class="progress-bar__fill" [style.width.%]="store.progress()"></div>
       </div>
+      <span class="progress-label">{{ store.progress() }}%</span>
     </div>
+  </div>
   }
 
   <!-- Error Overlay -->
   @if (auth.isAuthenticated() && store.status() === 'error') {
-    <div class="loading-overlay">
-      <div class="loading-card loading-card--error">
-        <h2>Unable to Load Floor Plan</h2>
-        <p>{{ store.error() }}</p>
-      </div>
+  <div class="loading-overlay">
+    <div class="loading-card loading-card--error">
+      <h2>Unable to Load Floor Plan</h2>
+      <p>{{ store.error() }}</p>
     </div>
+  </div>
   }
 
   <!-- Toast Notification -->
   @if (toastMessage(); as msg) {
-    <div class="toast-banner">
-      <span class="toast-dot"></span>
-      <span>{{ msg }}</span>
-    </div>
+  <div class="toast-banner">
+    <span class="toast-dot"></span>
+    <span>{{ msg }}</span>
+  </div>
   }
 
   <!-- Top Header Bar -->
   <app-top-bar (signOut)="onSignOut()" />
 
   <!-- Left Directory, Search Filters & Multi-Floor Wayfinding Sidebar -->
-  <app-sidebar
-    [(collapsed)]="sidebarCollapsed"
-    [(activeTab)]="sidebarTab"
-    (selectResource)="onSelectResource($event)"
-    (bookResource)="openCreateBooking($event)"
-    (navigateHere)="onNavigateHere($event)"
-    (stepClick)="onStepClick($event)"
-  />
+  <app-sidebar [(collapsed)]="sidebarCollapsed" [(activeTab)]="sidebarTab" (selectResource)="onSelectResource($event)"
+    (bookResource)="openCreateBooking($event)" (navigateHere)="onNavigateHere($event)"
+    (stepClick)="onStepClick($event)" />
 
   <!-- Right Resource Detail & Schedule Inspector -->
-  <app-resource-inspector
-    (bookResource)="openCreateBooking($event)"
-    (editReservation)="openEditBooking($event)"
-    (cancelReservation)="onCancelReservation($event)"
-    (endReservation)="onEndReservation($event)"
-    (navigateHere)="onNavigateHere($event)"
-    (navigateFromHere)="onNavigateFromHere($event)"
-  />
+  <app-resource-inspector (bookResource)="openCreateBooking($event)" (editReservation)="openEditBooking($event)"
+    (cancelReservation)="onCancelReservation($event)" (endReservation)="onEndReservation($event)"
+    (navigateHere)="onNavigateHere($event)" (navigateFromHere)="onNavigateFromHere($event)" />
 
   <!-- Create / Edit Reservation Modal (with optional Outlook Graph Sync) -->
-  <app-booking-modal
-    [open]="bookingModalOpen()"
-    [mode]="bookingModalMode()"
-    [resource]="store.selected()"
-    [reservation]="editingReservation()"
-    (closed)="closeBookingModal()"
-    (toast)="showToast($event)"
-    (cancelReservation)="onCancelReservation($event)"
-    (endReservation)="onEndReservation($event)"
-  />
+  <app-booking-modal [open]="bookingModalOpen()" [mode]="bookingModalMode()" [resource]="store.selected()"
+    [reservation]="editingReservation()" (closed)="closeBookingModal()" (toast)="showToast($event)"
+    (cancelReservation)="onCancelReservation($event)" (endReservation)="onEndReservation($event)" />
+
+  <!-- In-Browser GLB Upload & Analyzer Modal -->
+  <app-glb-analyzer [open]="analyzerOpen()" (closed)="analyzerOpen.set(false)"
+    (previewGlb)="onPreviewUploadedGlb($event)" (toast)="showToast($event)" />
 
   <!-- Bottom-Right Map Controls & Status Legend -->
-  <app-map-controls />
+  <app-map-controls (openAnalyzer)="analyzerOpen.set(true)" />
 </div>

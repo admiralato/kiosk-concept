@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { KioskStore } from '../../kiosk.store';
 import { STATUS_COLORS, type ViewMode } from '../../three/floorplan-engine';
 
 /**
  * Bottom-right floating map controls bar: live availability legend, floor switcher,
- * 3D/2D camera toggle, dollhouse cutaway toggle, and camera reset button.
+ * 3D/2D camera toggle, dollhouse cutaway toggle, GLB analyzer launcher, and camera reset button.
  */
 @Component({
   selector: 'app-map-controls',
@@ -16,6 +16,7 @@ import { STATUS_COLORS, type ViewMode } from '../../three/floorplan-engine';
 export class MapControlsComponent {
   readonly store = inject(KioskStore);
   readonly statusColors = STATUS_COLORS;
+  readonly openAnalyzer = output<void>();
 
   setViewMode(mode: ViewMode): void {
     this.store.viewMode.set(mode);

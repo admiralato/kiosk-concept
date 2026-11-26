@@ -1,5 +1,72 @@
 {
+  "branding": {
+    "title": "SpaceBoard PC",
+    "badge": "SB",
+    "subtitle": "3D Workspace Booking & Wayfinding"
+  },
   "defaultKioskDeviceId": "l12-1",
+  "resourceTypes": [
+    {
+      "key": "MeetingRoom",
+      "label": "Meeting Room",
+      "codePrefix": "MR",
+      "nodeGroup": "floor",
+      "kind": "meeting-room",
+      "bookable": true,
+      "defaultCapacity": 8,
+      "defaultEquipment": ["TV", "Whiteboard", "Video Conferencing"]
+    },
+    {
+      "key": "PrivateRoom",
+      "label": "Private Room",
+      "codePrefix": "PR",
+      "nodeGroup": "floor",
+      "kind": "meeting-room",
+      "bookable": true,
+      "defaultCapacity": 3,
+      "defaultEquipment": ["TV", "Soundproofing"]
+    },
+    {
+      "key": "FocusRoom",
+      "label": "Focus Room",
+      "codePrefix": "FR",
+      "nodeGroup": "floor",
+      "kind": "meeting-room",
+      "bookable": true,
+      "defaultCapacity": 2,
+      "defaultEquipment": ["Whiteboard", "Soundproofing"]
+    },
+    {
+      "key": "PhoneBooth",
+      "label": "Phone Booth",
+      "codePrefix": "PB",
+      "nodeGroup": "any",
+      "kind": "meeting-room",
+      "bookable": true,
+      "defaultCapacity": 1,
+      "defaultEquipment": ["Soundproofing"]
+    },
+    {
+      "key": "HuddleRoom",
+      "label": "Huddle Room",
+      "codePrefix": "HR",
+      "nodeGroup": "floor",
+      "kind": "meeting-room",
+      "bookable": true,
+      "defaultCapacity": 4,
+      "defaultEquipment": ["TV", "Whiteboard"]
+    },
+    {
+      "key": "Desk",
+      "label": "Desk",
+      "codePrefix": "D",
+      "nodeGroup": "furniture",
+      "kind": "desk",
+      "bookable": true,
+      "defaultCapacity": 1,
+      "defaultEquipment": ["Dual Monitor", "Standing Desk"]
+    }
+  ],
   "auth": {
     "enabled": true,
     "tenantId": "dc6b3307-ad9c-4e58-ac57-4aea4db74ad4",

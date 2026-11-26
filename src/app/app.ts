@@ -14,6 +14,10 @@ import { AzureAuthService } from './auth/azure-auth.service';
 import { OutlookCalendarService } from './auth/outlook-calendar.service';
 import { AuthGateComponent } from './components/auth-gate/auth-gate.component';
 import { BookingModalComponent } from './components/booking-modal/booking-modal.component';
+import {
+  GlbAnalyzerComponent,
+  type GlbPreviewPayload,
+} from './components/glb-analyzer/glb-analyzer.component';
 import { MapControlsComponent } from './components/map-controls/map-controls.component';
 import { ResourceInspectorComponent } from './components/resource-inspector/resource-inspector.component';
 import { SidebarComponent, type SidebarTab } from './components/sidebar/sidebar.component';
@@ -43,6 +47,7 @@ const IDLE_TIMEOUT_MS = 90_000;
     SidebarComponent,
     ResourceInspectorComponent,
     BookingModalComponent,
+    GlbAnalyzerComponent,
     MapControlsComponent,
   ],
   templateUrl: './app.html',
@@ -68,10 +73,11 @@ export class App implements OnInit, OnDestroy {
   readonly loadingFloorName = signal<string>('Floor Plan');
   readonly toastMessage = signal<string | null>(null);
 
-  // Booking modal coordination signals
+  // Booking modal & GLB analyzer coordination signals
   readonly bookingModalOpen = signal(false);
   readonly bookingModalMode = signal<'create' | 'edit'>('create');
   readonly editingReservation = signal<Reservation | null>(null);
+  readonly analyzerOpen = signal(false);
 
   constructor() {
     effect(() => {
@@ -266,6 +272,35 @@ export class App implements OnInit, OnDestroy {
     this.showToast(`Ended reservation "${res.subject}". Resource is now Available.`);
   }
 
+  async onPreviewUploadedGlb(payload: GlbPreviewPayload): Promise<void> {
+    if (!this.engine) return;
+    this.loadingFloorName.set(`${payload.fileName} (Preview)`);
+    this.store.status.set('loading');
+    this.store.progress.set(50);
+    try {
+      const site = this.store.siteFilter() || 'Preview';
+      const { resources, wayfinder } = await this.engine.loadFloorFromBuffer(
+        payload.floorId,
+        payload.buffer,
+        payload.kioskId,
+        site,
+      );
+      this.loadedActiveFloorId = payload.floorId;
+      this.store.floors.update((list) =>
+        list.includes(payload.floorId) ? list : [...list, payload.floorId],
+      );
+      this.store.floorFilter.set(payload.floorId);
+      this.store.registerFloorData(payload.floorId, resources, wayfinder);
+      this.store.status.set('ready');
+      this.engine.syncResources(this.store.resources(), this.store.availabilityById());
+      this.showToast(`Previewing ${payload.fileName} (${resources.length} resources detected)`);
+    } catch (err) {
+      console.error('Failed to preview uploaded GLB:', err);
+      this.store.status.set('ready');
+      this.showToast('Unable to preview GLB in 3D viewport.');
+    }
+  }
+
   showToast(message: string): void {
     this.toastMessage.set(message);
     if (this.toastTimer) clearTimeout(this.toastTimer);
@@ -290,7 +325,7 @@ export class App implements OnInit, OnDestroy {
     for (const cfg of this.store.floorConfigs()) {
       if (cfg.id === dev.floorId) continue;
       this.engine
-        .preloadFloor(cfg.id, cfg.modelUrl)
+        .preloadFloor(cfg.id, cfg.modelUrl, undefined, cfg.site)
         .then(({ floorId, resources, wayfinder }) => {
           this.store.registerFloorData(floorId, resources, wayfinder);
           this.engine?.syncResources(this.store.resources(), this.store.availabilityById());
@@ -317,6 +352,7 @@ export class App implements OnInit, OnDestroy {
         cfg.modelUrl,
         this.store.activeDevice().resourceId,
         (fraction) => this.store.progress.set(Math.round(fraction * 100)),
+        cfg.site,
       );
       this.store.registerFloorData(cfg.id, resources, wayfinder);
       this.store.status.set('ready');

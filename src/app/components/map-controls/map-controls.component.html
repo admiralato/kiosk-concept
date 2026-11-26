@@ -64,6 +64,15 @@
   <button
     type="button"
     class="ctrl-btn ctrl-btn--wide"
+    (click)="openAnalyzer.emit()"
+    title="Upload &amp; Analyze a .glb Floor Plan"
+  >
+    <span>Analyze GLB</span>
+  </button>
+
+  <button
+    type="button"
+    class="ctrl-btn ctrl-btn--wide"
     (click)="store.reset()"
     title="Reset Map &amp; Return to Kiosk"
   >

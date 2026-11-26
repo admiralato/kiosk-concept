@@ -10,16 +10,20 @@ import type {
   SpaceBoardDataset,
 } from './wayfinding/models';
 import {
+  DEFAULT_BRANDING_CONFIG,
   DEFAULT_FLOOR_CONFIGS,
   DEFAULT_KIOSK_DEVICES,
   DEFAULT_KIOSK_DEVICE_ID,
+  DEFAULT_RESOURCE_TYPES,
   resolveKioskDevice,
   resolveKioskDeviceFromUrl,
+  type BrandingConfig,
   type FloorConfig,
   type KioskDeviceConfig,
   type KioskRuntimeConfig,
+  type ResourceTypeConfig,
 } from './wayfinding/kiosk-config';
-import type { ResourceKind } from './wayfinding/resource-config';
+import { setRuntimeResourceTypes, type ResourceKind } from './wayfinding/resource-config';
 import type { Wayfinder } from './wayfinding/wayfinder';
 import type { ViewMode } from './three/floorplan-engine';
 
@@ -72,6 +76,10 @@ export class KioskStore {
   readonly error = signal<string | null>(null);
   readonly cachedFloors = signal<string[]>([]);
 
+  /** Client-agnostic branding & resource type definitions loaded from `data/kiosk-config.json`. */
+  readonly branding = signal<BrandingConfig>(DEFAULT_BRANDING_CONFIG);
+  readonly resourceTypeConfigs = signal<ReadonlyArray<ResourceTypeConfig>>(DEFAULT_RESOURCE_TYPES);
+
   /** Active kiosk device resolved from `?kioskId=` or default config fallback. */
   readonly activeDevice = signal<KioskDeviceConfig>(this.initialDevice);
   readonly kioskDevices = signal<ReadonlyArray<KioskDeviceConfig>>(DEFAULT_KIOSK_DEVICES);
@@ -84,18 +92,17 @@ export class KioskStore {
   private readonly catalogMap = signal<Map<string, ResourceCatalogEntry>>(new Map());
   readonly reservations = signal<Reservation[]>([]);
 
-  readonly sites = signal<string[]>(['Marina Bay Tower']);
+  readonly sites = signal<string[]>(
+    Array.from(new Set(DEFAULT_FLOOR_CONFIGS.map((f) => f.site).filter(Boolean))),
+  );
   readonly floors = signal<string[]>(DEFAULT_FLOOR_CONFIGS.map((f) => f.id));
-  readonly resourceTypes = signal<ResourceSubType[]>([
-    'Meeting Room',
-    'Private Room',
-    'Focus Room',
-    'Desk',
-  ]);
+  readonly resourceTypes = signal<ResourceSubType[]>(
+    DEFAULT_RESOURCE_TYPES.filter((t) => t.bookable).map((t) => t.label),
+  );
   readonly equipmentOptions = signal<string[]>([]);
 
   // Search & Booking Filter Signals
-  readonly siteFilter = signal<string>('Marina Bay Tower');
+  readonly siteFilter = signal<string>(DEFAULT_FLOOR_CONFIGS[0]?.site ?? '');
   /** Currently viewed 3D floor plan ('Level 12' or 'Level 13'). */
   readonly floorFilter = signal<string>(this.initialDevice.floorId);
   /** Whether the directory list searches across all loaded floors or only the active floor. */
@@ -313,8 +320,17 @@ export class KioskStore {
     }
   }
 
-  /** Applies runtime floor & kiosk configuration loaded from `data/kiosk-config.json`. */
+  /** Applies runtime branding, resource types, floor & kiosk config loaded from `data/kiosk-config.json`. */
   applyRuntimeConfig(cfg: KioskRuntimeConfig): void {
+    this.branding.set(cfg.branding);
+    this.resourceTypeConfigs.set(cfg.resourceTypes);
+    setRuntimeResourceTypes(cfg.resourceTypes);
+
+    const bookableTypes = cfg.resourceTypes.filter((t) => t.bookable).map((t) => t.label);
+    if (bookableTypes.length) {
+      this.resourceTypes.set(bookableTypes);
+    }
+
     this.floorConfigs.set(cfg.floors);
     this.kioskDevices.set(cfg.kioskDevices);
     this.defaultKioskDeviceId.set(cfg.defaultKioskDeviceId);
@@ -428,7 +444,12 @@ export class KioskStore {
         const cfgFloors = this.floorConfigs().map((f) => f.id);
         this.floors.set(Array.from(new Set([...cfgFloors, ...data.floors])));
       }
-      if (data.resourceTypes?.length) this.resourceTypes.set(data.resourceTypes);
+      if (data.resourceTypes?.length) {
+        const cfgTypes = this.resourceTypeConfigs()
+          .filter((t) => t.bookable)
+          .map((t) => t.label);
+        this.resourceTypes.set(Array.from(new Set([...cfgTypes, ...data.resourceTypes])));
+      }
       if (data.equipmentOptions?.length) this.equipmentOptions.set(data.equipmentOptions);
 
       const map = new Map<string, ResourceCatalogEntry>();
@@ -715,7 +736,7 @@ export class KioskStore {
     this.resourceTypeFilter.set('all');
     this.selectedEquipment.set([]);
     this.onlyAvailable.set(false);
-    this.siteFilter.set('Marina Bay Tower');
+    this.siteFilter.set(this.sites()[0] ?? '');
     this.searchAllFloors.set(true);
   }
 

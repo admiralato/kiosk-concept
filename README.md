@@ -35,7 +35,8 @@ src/app/
 │   ├── sidebar/                         # Collapsible Search & Booking filters, Wayfinding planner & Directory
 │   ├── resource-inspector/              # Right detail drawer, 07:00–19:00 timeline, upcoming & full-day schedule
 │   ├── booking-modal/                   # Create/Edit reservation modal with optional Microsoft Graph Outlook sync
-│   └── map-controls/                    # Bottom-right Status Legend, Floor Switcher, 3D/2D, Cutaway & Reset
+│   ├── glb-analyzer/                    # In-browser drag-and-drop GLB analyzer & live 3D preview modal
+│   └── map-controls/                    # Bottom-right Status Legend, Floor Switcher, 3D/2D, Cutaway, Analyze & Reset
 ├── auth/                                # Authentication & calendar integrations
 │   ├── azure-auth.service.ts            # Unified Auth: MSAL PKCE redirect + silent revalidation + Local/Demo auth
 │   └── outlook-calendar.service.ts      # Microsoft Graph Calendar API (create, update, cancel room events)
@@ -54,18 +55,24 @@ src/app/
     └── formatters.ts                    # Pure formatting & color helpers (time, date, distance, duration, icons)
 ```
 
-### Runtime Configuration (Zero-Rebuild)
-- **[public/data/kiosk-config.json](public/data/kiosk-config.json)** — Floors (`floors`), physical kiosk terminals (`kioskDevices`), Azure AD OAuth 2.0 settings (`auth`), and local user database API / demo login settings (`auth.local`).
+### Runtime Configuration (Client-Agnostic, Zero-Rebuild)
+- **[public/data/kiosk-config.json](public/data/kiosk-config.json)** — Client branding (`branding`), configurable bookable/non-bookable resource types (`resourceTypes`: `MeetingRoom`, `PrivateRoom`, `FocusRoom`, `PhoneBooth`, `HuddleRoom`, `Desk`, etc.), floors (`floors`), physical kiosk terminals (`kioskDevices`), Azure AD OAuth 2.0 settings (`auth`), and local user database API / demo login settings (`auth.local`).
 - **[public/data/spaceboard-data.json](public/data/spaceboard-data.json)** — Resource catalog metadata (including optional `exchangeId` for Outlook room mailboxes) and seed reservations.
 - **[public/models/](public/models/)** — Optimized Meshopt `.glb` floor plans (`floorplan.glb`, `l13-floorplan.glb`, etc.).
 
 ---
 
-## Updating or Adding 3D Floor Plans
+## Onboarding a New Client / Updating 3D Floor Plans
 
 ```bash
+# Analyze any GLB file against your configured resourceTypes (prints summary + starter JSON)
+npm run analyze-glb -- public/models/floorplan.glb
+
 # Rebuild Level 12 + Level 13 GLBs
 npm run optimize-model
+
+# Rebuild Level 12 only (from assets/l12/)
+npm run optimize-l12
 
 # Rebuild Level 13 only (assembles divided GLBs from assets/l13/)
 npm run optimize-l13
@@ -76,5 +83,7 @@ NODE_OPTIONS='--max-old-space-size=8192' npx tsx scripts/assemble-floorplan.ts a
 # Verify navigation grid reachability without opening a browser
 npx tsx scripts/nav-debug.ts /tmp/nav-l13.png public/models/l13-floorplan.glb WAYFINDING_KIOSK_L13_1
 ```
+
+You can also click **Analyze GLB** in the bottom-right map controls bar to drag-and-drop any `.glb` file directly in the browser, inspect matched bookable resources, copy starter JSON, and preview it live in the 3D viewport.
 
 For full technical specifications, wayfinding algorithm details, Azure AD setup, and production deployment instructions, see **[kiosk_specifications_and_guide.md](kiosk_specifications_and_guide.md)**.

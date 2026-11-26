@@ -1,0 +1,193 @@
+@if (open()) {
+  <div class="analyzer-backdrop" (click)="close()">
+    <div class="analyzer-modal" (click)="$event.stopPropagation()">
+      <div class="analyzer-header">
+        <div>
+          <span class="analyzer-kicker">Client Onboarding &amp; Diagnostics</span>
+          <h3>GLB Floor Plan Analyzer</h3>
+        </div>
+        <button type="button" class="close-btn" (click)="close()" aria-label="Close analyzer">
+          &times;
+        </button>
+      </div>
+
+      <!-- Active Configured Resource Types -->
+      <div class="configured-types-bar">
+        <span class="bar-label">Configured Bookable Types:</span>
+        <div class="type-chips">
+          @for (rt of store.resourceTypeConfigs(); track rt.key) {
+            <span class="type-chip" [class.is-bookable]="rt.bookable" [title]="'Node key: ' + rt.key + ' (' + rt.nodeGroup + ')'">
+              {{ rt.label }} (<code>{{ rt.key }}</code>)
+            </span>
+          }
+        </div>
+      </div>
+
+      <!-- Drag & Drop Zone -->
+      <div
+        class="drop-zone"
+        [class.is-dragging]="dragging()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave()"
+        (drop)="onDrop($event)"
+      >
+        <input
+          #fileInput
+          type="file"
+          accept=".glb"
+          hidden
+          (change)="onFileSelected($event)"
+        />
+        @if (analyzing()) {
+          <div class="spinner-ring"></div>
+          <p>Parsing GLB geometry &amp; matching configured resource rules...</p>
+        } @else {
+          <p class="drop-title">Drop any Sweet Home 3D / glTF <strong>.glb</strong> floor plan here</p>
+          <p class="drop-sub">Analyzed 100% locally in your browser — nothing is uploaded externally.</p>
+          <button type="button" class="btn-browse" (click)="fileInput.click()">
+            Choose .glb File
+          </button>
+        }
+      </div>
+
+      @if (error(); as err) {
+        <div class="analyzer-error">{{ err }}</div>
+      }
+
+      @if (result(); as res) {
+        <div class="summary-strip">
+          <div class="summary-card">
+            <span class="summary-val">{{ res.bookable.length }}</span>
+            <span class="summary-lbl">Bookable</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-val">{{ res.lifts.length + res.kiosks.length }}</span>
+            <span class="summary-lbl">Lifts &amp; Kiosks</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-val">{{ res.amenities.length }}</span>
+            <span class="summary-lbl">Amenities</span>
+          </div>
+          <div class="summary-card" [class.has-warn]="res.ceilingOnlyRooms.length > 0">
+            <span class="summary-val">{{ res.ceilingOnlyRooms.length }}</span>
+            <span class="summary-lbl">Ceiling-Only</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-val">{{ res.unmatchedNamed.length }}</span>
+            <span class="summary-lbl">Unmatched</span>
+          </div>
+        </div>
+
+        <div class="file-meta-line">
+          <span><strong>{{ res.fileName }}</strong> ({{ res.fileSizeMb }} MB)</span>
+          <span>Detected: <strong>Level {{ res.detectedLevel }}</strong></span>
+        </div>
+
+        <div class="analyzer-tabs">
+          <button
+            type="button"
+            [class.is-active]="activeSection() === 'bookable'"
+            (click)="activeSection.set('bookable')"
+          >
+            Bookable ({{ res.bookable.length }})
+          </button>
+          <button
+            type="button"
+            [class.is-active]="activeSection() === 'infra'"
+            (click)="activeSection.set('infra')"
+          >
+            Lifts, Kiosks &amp; Amenities ({{ res.lifts.length + res.kiosks.length + res.amenities.length }})
+          </button>
+          <button
+            type="button"
+            [class.is-active]="activeSection() === 'warnings'"
+            (click)="activeSection.set('warnings')"
+          >
+            Checks ({{ res.ceilingOnlyRooms.length + res.unmatchedNamed.length }})
+          </button>
+          <button
+            type="button"
+            [class.is-active]="activeSection() === 'json'"
+            (click)="activeSection.set('json')"
+          >
+            Starter JSON
+          </button>
+        </div>
+
+        <div class="analyzer-content">
+          @if (activeSection() === 'bookable') {
+            @if (bookableSummary().length) {
+              <div class="type-breakdown">
+                @for (b of bookableSummary(); track b.type) {
+                  <span class="breakdown-pill">{{ b.type }}: <strong>{{ b.count }}</strong></span>
+                }
+              </div>
+            }
+            <div class="node-list">
+              @for (item of res.bookable; track item.id) {
+                <div class="node-row">
+                  <span class="node-badge">{{ item.code }}</span>
+                  <div class="node-info">
+                    <strong>{{ item.name }}</strong>
+                    <span>{{ item.resourceType }} &bull; <code>{{ item.nodeName }}</code></span>
+                  </div>
+                </div>
+              } @empty {
+                <p class="empty-msg">No bookable resources matched the configured rules in this GLB.</p>
+              }
+            </div>
+          }
+
+          @if (activeSection() === 'infra') {
+            <div class="node-list">
+              @for (item of [...res.kiosks, ...res.lifts, ...res.amenities]; track item.id) {
+                <div class="node-row">
+                  <span class="node-badge node-badge--infra">{{ item.code }}</span>
+                  <div class="node-info">
+                    <strong>{{ item.name }}</strong>
+                    <span>{{ item.resourceType }} &bull; <code>{{ item.nodeName }}</code></span>
+                  </div>
+                </div>
+              } @empty {
+                <p class="empty-msg">No lifts, kiosks, or amenities found in this GLB.</p>
+              }
+            </div>
+          }
+
+          @if (activeSection() === 'warnings') {
+            @if (res.ceilingOnlyRooms.length) {
+              <div class="check-box check-box--warn">
+                <strong>Ceiling-Only Named Rooms ({{ res.ceilingOnlyRooms.length }})</strong>
+                <p>Run <code>assemble-floorplan.ts</code> to synthesize clickable floor plates for these rooms:</p>
+                <div class="code-list">{{ res.ceilingOnlyRooms.join(', ') }}</div>
+              </div>
+            }
+            @if (res.unmatchedNamed.length) {
+              <div class="check-box">
+                <strong>Unmatched Named Nodes ({{ res.unmatchedNamed.length }})</strong>
+                <p>Add their prefix to <code>resourceTypes</code> in <code>data/kiosk-config.json</code> if they should be bookable:</p>
+                <div class="code-list">{{ res.unmatchedNamed.join(', ') }}</div>
+              </div>
+            }
+            @if (!res.ceilingOnlyRooms.length && !res.unmatchedNamed.length) {
+              <p class="empty-msg">All named rooms and doors matched cleanly with no missing floor plates.</p>
+            }
+          }
+
+          @if (activeSection() === 'json') {
+            <pre class="json-preview">{{ res.starterJson }}</pre>
+          }
+        </div>
+
+        <div class="analyzer-footer">
+          <button type="button" class="btn-secondary" (click)="copyStarterJson()">
+            Copy Starter JSON
+          </button>
+          <button type="button" class="btn-primary" (click)="onPreviewInViewport()">
+            Preview in 3D Viewport
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

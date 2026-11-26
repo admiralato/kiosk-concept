@@ -249,16 +249,41 @@ export class FloorplanEngine {
     url: string,
     activeKioskId: string,
     onProgress?: (fraction: number) => void,
+    site = 'Default Site',
   ): Promise<LoadResult> {
     this.activeKioskId = activeKioskId;
     const wasInMemory = this.floorCache.has(floorId);
-    const cached = await this.ensureFloorLoaded(floorId, url, onProgress);
+    const cached = await this.ensureFloorLoaded(floorId, url, onProgress, site);
     this.activateFloorScene(cached);
     return {
       floorId,
       resources: cached.resources,
       wayfinder: cached.wayfinder,
       fromCache: wasInMemory,
+    };
+  }
+
+  /**
+   * Loads an uploaded/local GLB `ArrayBuffer` directly into the 3D viewport (used by the
+   * in-browser GLB Upload & Analyzer tool for instant client onboarding previews).
+   */
+  async loadFloorFromBuffer(
+    floorId: string,
+    buffer: ArrayBuffer,
+    activeKioskId: string,
+    site = 'Preview',
+  ): Promise<LoadResult> {
+    this.activeKioskId = activeKioskId;
+    this.floorCache.delete(floorId);
+    this.floorNavCache.delete(floorId);
+    const built = await this.parseAndBuildFromBuffer(floorId, 'uploaded://preview.glb', buffer, false, site);
+    this.floorCache.set(floorId, built);
+    this.activateFloorScene(built);
+    return {
+      floorId,
+      resources: built.resources,
+      wayfinder: built.wayfinder,
+      fromCache: false,
     };
   }
 
@@ -271,6 +296,7 @@ export class FloorplanEngine {
     floorId: string,
     url: string,
     onProgress?: (fraction: number) => void,
+    site = 'Default Site',
   ): Promise<LoadResult> {
     const existingScene = this.floorCache.get(floorId);
     if (existingScene) {
@@ -296,7 +322,7 @@ export class FloorplanEngine {
 
     let promise = this.inFlightPreloads.get(floorId);
     if (!promise) {
-      promise = this.extractNavDataAndDispose(floorId, url, onProgress);
+      promise = this.extractNavDataAndDispose(floorId, url, onProgress, site);
       this.inFlightPreloads.set(floorId, promise);
     }
 
@@ -322,8 +348,9 @@ export class FloorplanEngine {
     floorId: string,
     url: string,
     onProgress?: (fraction: number) => void,
+    site = 'Default Site',
   ): Promise<CachedFloorNavData> {
-    const built = await this.parseAndBuildFloor(floorId, url, onProgress, true);
+    const built = await this.parseAndBuildFloor(floorId, url, onProgress, true, site);
     const navData: CachedFloorNavData = {
       resources: built.resources,
       wayfinder: built.wayfinder,
@@ -336,6 +363,7 @@ export class FloorplanEngine {
     floorId: string,
     url: string,
     onProgress?: (fraction: number) => void,
+    site = 'Default Site',
   ): Promise<CachedFloorScene> {
     const existing = this.floorCache.get(floorId);
     if (existing) {
@@ -346,7 +374,7 @@ export class FloorplanEngine {
     const inflight = this.inFlightLoads.get(floorId);
     if (inflight) return inflight;
 
-    const promise = this.parseAndBuildFloor(floorId, url, onProgress);
+    const promise = this.parseAndBuildFloor(floorId, url, onProgress, false, site);
     this.inFlightLoads.set(floorId, promise);
     try {
       const built = await promise;
@@ -362,9 +390,19 @@ export class FloorplanEngine {
     url: string,
     onProgress?: (fraction: number) => void,
     navOnly = false,
+    site = 'Default Site',
   ): Promise<CachedFloorScene> {
     const arrayBuffer = await fetchCachedGlbBuffer(url, onProgress);
+    return this.parseAndBuildFromBuffer(floorId, url, arrayBuffer, navOnly, site);
+  }
 
+  private async parseAndBuildFromBuffer(
+    floorId: string,
+    url: string,
+    arrayBuffer: ArrayBuffer,
+    navOnly = false,
+    site = 'Default Site',
+  ): Promise<CachedFloorScene> {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     const gltf = await loader.parseAsync(arrayBuffer, '');
@@ -420,7 +458,7 @@ export class FloorplanEngine {
         name: formatResourcePropertyName(id) || m.rule.name(m.match),
         code: m.rule.code(m.match),
         level: lvl,
-        site: 'Marina Bay Tower',
+        site,
         floor: `Level ${lvl}`,
         resourceType:
           m.rule.defaultSubType ??
@@ -434,7 +472,7 @@ export class FloorplanEngine {
         capacity:
           m.rule.defaultCapacity ?? (kind === 'meeting-room' ? 6 : kind === 'desk' ? 1 : 0),
         equipment: m.rule.defaultEquipment ? [...m.rule.defaultEquipment] : [],
-        bookable: kind === 'meeting-room' || kind === 'desk',
+        bookable: m.rule.bookable,
         center: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2 },
         bounds: { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z },
         anchor: null,
@@ -465,7 +503,7 @@ export class FloorplanEngine {
     }
     for (const f of furniture) {
       const r = matchResource(f.name);
-      if (r?.rule.kind === 'desk' || r?.rule.kind === 'kiosk') {
+      if (r?.rule.kind === 'desk' || r?.rule.kind === 'kiosk' || r?.rule.bookable) {
         const res = register(f);
         if (res?.kind === 'kiosk') continue; // kiosks never block navigation
       }

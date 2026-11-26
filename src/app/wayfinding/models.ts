@@ -10,17 +10,11 @@ export type AvailabilityStatus = 'available' | 'reserved' | 'occupied';
  */
 export type ReservationStatus = 'starting' | 'started';
 
-export type ResourceSubType =
-  | 'Meeting Room'
-  | 'Private Room'
-  | 'Focus Room'
-  | 'Desk'
-  | 'Lift'
-  | 'Kiosk'
-  | 'Male Toilet'
-  | 'Female Toilet'
-  | 'PWD Toilet'
-  | 'Nursing Room';
+/**
+ * Client-configurable resource sub-type label (e.g. 'Meeting Room', 'Private Room',
+ * 'Focus Room', 'Phone Booth', 'Desk', 'Male Toilet', etc. from `data/kiosk-config.json`).
+ */
+export type ResourceSubType = string;
 
 export interface ResourceCatalogEntry {
   id: string;

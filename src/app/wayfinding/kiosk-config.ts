@@ -16,6 +16,36 @@
  * back to `defaultKioskDeviceId`.
  */
 
+export interface BrandingConfig {
+  /** Application display title (e.g. 'SpaceBoard PC'). */
+  title: string;
+  /** Short 1–3 letter monogram shown in the logo badge (e.g. 'SB'). */
+  badge: string;
+  /** Subtitle shown on the Sign-In modal. */
+  subtitle: string;
+}
+
+export interface ResourceTypeConfig {
+  /** Node name prefix/key in the GLB (e.g. 'MeetingRoom', 'PrivateRoom', 'FocusRoom', 'PhoneBooth', 'Desk'). */
+  key: string;
+  /** Human-readable label shown in UI & filters (e.g. 'Meeting Room', 'Phone Booth'). */
+  label: string;
+  /** Short code prefix shown on map badges (e.g. 'MR', 'PR', 'FR', 'PB', 'D'). */
+  codePrefix: string;
+  /** Which GLB group this resource lives in: 'floor', 'furniture', 'door', or 'any'. */
+  nodeGroup: 'floor' | 'furniture' | 'door' | 'any';
+  /** Semantic category controlling visual style & directory tab. */
+  kind: 'meeting-room' | 'desk' | 'amenity';
+  /** Whether users can book this resource type (true -> availability colors & booking actions). */
+  bookable: boolean;
+  /** Default seating capacity when not overridden by catalog JSON / API. */
+  defaultCapacity?: number;
+  /** Default equipment list when not overridden by catalog JSON / API. */
+  defaultEquipment?: string[];
+  /** Optional badge hex color for non-bookable amenities. */
+  color?: string;
+}
+
 export interface FloorConfig {
   /** Human-readable floor label used in filters (e.g. 'Level 12'). */
   id: string;
@@ -92,11 +122,82 @@ export interface AzureAuthConfig {
 }
 
 export interface KioskRuntimeConfig {
+  branding: BrandingConfig;
   defaultKioskDeviceId: string;
+  resourceTypes: ResourceTypeConfig[];
   auth: AzureAuthConfig;
   floors: FloorConfig[];
   kioskDevices: KioskDeviceConfig[];
 }
+
+export const DEFAULT_BRANDING_CONFIG: BrandingConfig = {
+  title: 'SpaceBoard PC',
+  badge: 'SB',
+  subtitle: '3D Workspace Booking & Wayfinding',
+};
+
+export const DEFAULT_RESOURCE_TYPES: ReadonlyArray<ResourceTypeConfig> = [
+  {
+    key: 'MeetingRoom',
+    label: 'Meeting Room',
+    codePrefix: 'MR',
+    nodeGroup: 'floor',
+    kind: 'meeting-room',
+    bookable: true,
+    defaultCapacity: 8,
+    defaultEquipment: ['TV', 'Whiteboard', 'Video Conferencing'],
+  },
+  {
+    key: 'PrivateRoom',
+    label: 'Private Room',
+    codePrefix: 'PR',
+    nodeGroup: 'floor',
+    kind: 'meeting-room',
+    bookable: true,
+    defaultCapacity: 3,
+    defaultEquipment: ['TV', 'Soundproofing'],
+  },
+  {
+    key: 'FocusRoom',
+    label: 'Focus Room',
+    codePrefix: 'FR',
+    nodeGroup: 'floor',
+    kind: 'meeting-room',
+    bookable: true,
+    defaultCapacity: 2,
+    defaultEquipment: ['Whiteboard', 'Soundproofing'],
+  },
+  {
+    key: 'PhoneBooth',
+    label: 'Phone Booth',
+    codePrefix: 'PB',
+    nodeGroup: 'any',
+    kind: 'meeting-room',
+    bookable: true,
+    defaultCapacity: 1,
+    defaultEquipment: ['Soundproofing'],
+  },
+  {
+    key: 'HuddleRoom',
+    label: 'Huddle Room',
+    codePrefix: 'HR',
+    nodeGroup: 'floor',
+    kind: 'meeting-room',
+    bookable: true,
+    defaultCapacity: 4,
+    defaultEquipment: ['TV', 'Whiteboard'],
+  },
+  {
+    key: 'Desk',
+    label: 'Desk',
+    codePrefix: 'D',
+    nodeGroup: 'furniture',
+    kind: 'desk',
+    bookable: true,
+    defaultCapacity: 1,
+    defaultEquipment: ['Dual Monitor', 'Standing Desk'],
+  },
+];
 
 export const DEFAULT_LOCAL_AUTH_CONFIG: LocalAuthConfig = {
   enabled: true,
@@ -190,9 +291,9 @@ export async function loadKioskConfig(
     const kioskDevices =
       Array.isArray(parsed.kioskDevices) && parsed.kioskDevices.length > 0
         ? parsed.kioskDevices.map((d) => ({
-            ...d,
-            aliases: Array.isArray(d.aliases) ? d.aliases : [d.deviceId.toLowerCase()],
-          }))
+          ...d,
+          aliases: Array.isArray(d.aliases) ? d.aliases : [d.deviceId.toLowerCase()],
+        }))
         : [...DEFAULT_KIOSK_DEVICES];
     const defaultKioskDeviceId =
       typeof parsed.defaultKioskDeviceId === 'string' && parsed.defaultKioskDeviceId.trim()
@@ -212,11 +313,22 @@ export async function loadKioskConfig(
       },
     };
 
-    return { defaultKioskDeviceId, auth, floors, kioskDevices };
+    const branding: BrandingConfig = {
+      ...DEFAULT_BRANDING_CONFIG,
+      ...(parsed.branding ?? {}),
+    };
+    const resourceTypes: ResourceTypeConfig[] =
+      Array.isArray(parsed.resourceTypes) && parsed.resourceTypes.length > 0
+        ? parsed.resourceTypes
+        : [...DEFAULT_RESOURCE_TYPES];
+
+    return { branding, defaultKioskDeviceId, resourceTypes, auth, floors, kioskDevices };
   } catch (err) {
     console.warn('Could not load data/kiosk-config.json; using built-in defaults:', err);
     return {
+      branding: { ...DEFAULT_BRANDING_CONFIG },
       defaultKioskDeviceId: DEFAULT_KIOSK_DEVICE_ID,
+      resourceTypes: [...DEFAULT_RESOURCE_TYPES],
       auth: { ...DEFAULT_AZURE_AUTH_CONFIG },
       floors: [...DEFAULT_FLOOR_CONFIGS],
       kioskDevices: [...DEFAULT_KIOSK_DEVICES],

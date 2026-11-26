@@ -5,6 +5,7 @@ import {
   DEMO_LOGIN_PASSWORD,
   DEMO_LOGIN_USERNAME,
 } from '../../auth/azure-auth.service';
+import { KioskStore } from '../../kiosk.store';
 import { BUILD_INFO } from '../../shared/build-info';
 
 /**
@@ -23,6 +24,7 @@ import { BUILD_INFO } from '../../shared/build-info';
 })
 export class AuthGateComponent {
   readonly auth = inject(AzureAuthService);
+  readonly store = inject(KioskStore);
 
   /** Emits when an in-page login (Local DB or Demo) succeeds so the shell can boot 3D scenes. */
   readonly authenticated = output<void>();
